@@ -37,6 +37,42 @@
         <h1>Interface Consolidation Tool</h1>
         <p class="description">Upload an Excel file to visualize system interfaces</p>
         
+        <!-- View Navigation -->
+        <div class="view-navigation">
+            <button class="nav-btn active" onclick="switchView('network')" data-view="network">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <circle cx="5" cy="5" r="2"/>
+                    <circle cx="19" cy="5" r="2"/>
+                    <circle cx="5" cy="19" r="2"/>
+                    <circle cx="19" cy="19" r="2"/>
+                    <line x1="12" y1="9" x2="12" y2="12"/>
+                    <line x1="9" y1="12" x2="5" y2="7"/>
+                    <line x1="15" y1="12" x2="19" y2="7"/>
+                    <line x1="9" y1="12" x2="5" y2="17"/>
+                    <line x1="15" y1="12" x2="19" y2="17"/>
+                </svg>
+                Network View
+            </button>
+            <button class="nav-btn" onclick="switchView('dashboard')" data-view="dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Dashboard
+            </button>
+            <button class="nav-btn" onclick="switchView('executive')" data-view="executive">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                Executive View
+            </button>
+        </div>
+        
         <div class="upload-section">
             <input type="file" id="fileInput" accept=".xlsx,.xls" />
             <button id="uploadBtn" onclick="handleFileUpload()">Upload and Visualize</button>
@@ -223,6 +259,157 @@
             <button onclick="closeComparisonResults()" class="close-btn">Close Comparison</button>
             <div id="comparisonSummary"></div>
             <div id="comparisonDetails"></div>
+        </div>
+
+        <!-- Summary Insights Dashboard -->
+        <div id="dashboardView" class="view-section" style="display: none;">
+            <div class="dashboard-header">
+                <h2>Summary Insights & Metrics</h2>
+                <p class="dashboard-subtitle">Overview of interface data with key performance indicators</p>
+            </div>
+            
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <div class="kpi-value" id="kpiTotalInterfaces">0</div>
+                    <div class="kpi-label">Total Interfaces</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                        </svg>
+                    </div>
+                    <div class="kpi-value" id="kpiTotalSystems">0</div>
+                    <div class="kpi-label">Total Systems</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </div>
+                    <div class="kpi-value" id="kpiAvgConnections">0</div>
+                    <div class="kpi-label">Avg Connections/System</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                    </div>
+                    <div class="kpi-value" id="kpiValidationScore">100%</div>
+                    <div class="kpi-label">Data Quality Score</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Interfaces by Communication Type</h3>
+                    <div id="commTypeChart"></div>
+                </div>
+                <div class="chart-container">
+                    <h3>Top 5 Most Connected Systems</h3>
+                    <div id="topSystemsChart"></div>
+                </div>
+                <div class="chart-container">
+                    <h3>Interfaces by Frequency</h3>
+                    <div id="frequencyChart"></div>
+                </div>
+                <div class="chart-container">
+                    <h3>Data Validation Stats</h3>
+                    <div id="validationChart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Management View -->
+        <div id="executiveView" class="view-section" style="display: none;">
+            <div class="executive-header">
+                <h2>Executive Management View</h2>
+                <p class="executive-subtitle">High-level insights for strategic decision-making</p>
+                <button class="export-btn" onclick="exportExecutiveReport()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export PDF Report
+                </button>
+            </div>
+
+            <!-- Executive KPIs -->
+            <div class="executive-kpi-grid">
+                <div class="executive-kpi-card critical">
+                    <div class="kpi-header">
+                        <h4>Critical Systems</h4>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="executive-kpi-value" id="execCriticalSystems">0</div>
+                    <div class="executive-kpi-label">High-impact systems requiring attention</div>
+                </div>
+                <div class="executive-kpi-card warning">
+                    <div class="kpi-header">
+                        <h4>Risk Score</h4>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </div>
+                    <div class="executive-kpi-value" id="execRiskScore">Low</div>
+                    <div class="executive-kpi-label">Overall system dependency risk</div>
+                </div>
+                <div class="executive-kpi-card info">
+                    <div class="kpi-header">
+                        <h4>Integration Complexity</h4>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <div class="executive-kpi-value" id="execComplexity">Medium</div>
+                    <div class="executive-kpi-label">Based on interface distribution</div>
+                </div>
+            </div>
+
+            <!-- Critical Path Analysis -->
+            <div class="executive-section">
+                <h3>Critical Path Systems</h3>
+                <p class="section-description">Systems with the highest impact on business operations</p>
+                <div id="criticalPathList" class="critical-path-list"></div>
+            </div>
+
+            <!-- Risk Impact Matrix -->
+            <div class="executive-section">
+                <h3>Risk Impact Analysis</h3>
+                <p class="section-description">Potential impact of system failures on dependencies</p>
+                <div class="risk-matrix-container">
+                    <div id="riskImpactChart"></div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="executive-section">
+                <h3>Strategic Recommendations</h3>
+                <div id="recommendationsList" class="recommendations-list"></div>
+            </div>
         </div>
     </div>
 

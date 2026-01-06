@@ -1573,3 +1573,702 @@ function applyComparisonHighlighting(diff) {
     }
 }
 
+// ==================== VIEW SWITCHING FUNCTIONALITY ====================
+
+let currentView = 'network';
+let dashboardCharts = {};
+
+// Constants for visualizations
+const MAX_LABEL_LENGTH = 12;
+const TRUNCATED_LABEL_LENGTH = 10;
+const LABEL_ELLIPSIS = '...';
+const MIN_RISK_FACTOR = 0.5;
+const RISK_HASH_MODULO = 50;
+const RISK_SCALE_DIVISOR = 100;
+const HIGH_CONNECTION_THRESHOLD = 10;
+const BATCH_DOMINANCE_THRESHOLD = 0.6;
+
+/**
+ * Switch between different views (network, dashboard, executive)
+ */
+function switchView(viewName) {
+    currentView = viewName;
+    
+    // Update navigation buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-view="${viewName}"]`)?.classList.add('active');
+    
+    // Hide all views
+    document.getElementById('network').style.display = 'none';
+    document.getElementById('legend').style.display = 'none';
+    document.getElementById('filterSection').style.display = 'none';
+    document.getElementById('networkStats').style.display = 'none';
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('executiveView').style.display = 'none';
+    
+    // Show selected view
+    if (viewName === 'network') {
+        document.getElementById('network').style.display = 'block';
+        if (currentData) {
+            document.getElementById('legend').style.display = 'block';
+            document.getElementById('filterSection').style.display = 'block';
+            document.getElementById('networkStats').style.display = 'flex';
+        }
+    } else if (viewName === 'dashboard') {
+        document.getElementById('dashboardView').style.display = 'block';
+        if (currentData) {
+            initializeDashboard();
+        }
+    } else if (viewName === 'executive') {
+        document.getElementById('executiveView').style.display = 'block';
+        if (currentData) {
+            initializeExecutiveView();
+        }
+    }
+}
+
+// ==================== DASHBOARD FUNCTIONS ====================
+
+/**
+ * Initialize the dashboard with charts and metrics
+ */
+function initializeDashboard() {
+    if (!currentData) return;
+    
+    calculateDashboardMetrics();
+    createDashboardCharts();
+}
+
+/**
+ * Calculate dashboard KPIs and metrics
+ */
+function calculateDashboardMetrics() {
+    const { nodes, edges } = currentData;
+    
+    // Total interfaces
+    document.getElementById('kpiTotalInterfaces').textContent = edges.length;
+    
+    // Total systems
+    document.getElementById('kpiTotalSystems').textContent = nodes.length;
+    
+    // Average connections per system
+    const avgConnections = nodes.length > 0 ? (edges.length * 2 / nodes.length).toFixed(1) : 0;
+    document.getElementById('kpiAvgConnections').textContent = avgConnections;
+    
+    // Data quality score (based on complete fields)
+    let validCount = 0;
+    edges.forEach(edge => {
+        if (edge.communicationType && edge.communicationType !== 'Unknown' &&
+            edge.frequency && edge.frequency !== 'Unknown' &&
+            edge.label && edge.label !== 'Unknown') {
+            validCount++;
+        }
+    });
+    const qualityScore = edges.length > 0 ? Math.round((validCount / edges.length) * 100) : 100;
+    document.getElementById('kpiValidationScore').textContent = qualityScore + '%';
+}
+
+/**
+ * Create dashboard charts using custom SVG visualizations
+ */
+function createDashboardCharts() {
+    const { edges } = currentData;
+    
+    // Clear existing charts
+    dashboardCharts = {};
+    
+    // Chart 1: Interfaces by Communication Type
+    const commTypeData = getCommTypeDistribution(edges);
+    createSVGBarChart('commTypeChart', commTypeData, 
+        ['#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#999999']);
+    
+    // Chart 2: Top 5 Most Connected Systems
+    const topSystems = getTopConnectedSystems(5);
+    const topSystemsData = {};
+    topSystems.labels.forEach((label, i) => {
+        topSystemsData[label] = topSystems.data[i];
+    });
+    createSVGBarChart('topSystemsChart', topSystemsData, ['#00d4ff']);
+    
+    // Chart 3: Interfaces by Frequency
+    const frequencyData = getFrequencyDistribution(edges);
+    createSVGBarChart('frequencyChart', frequencyData,
+        ['#2196F3', '#4CAF50', '#FF9800', '#9E9E9E', '#E91E63', '#607D8B']);
+    
+    // Chart 4: Data Validation Stats
+    const validationData = getValidationStats(edges);
+    const validationChartData = {
+        'Complete': validationData.complete,
+        'Incomplete': validationData.incomplete
+    };
+    createSVGBarChart('validationChart', validationChartData, ['#10b981', '#ef4444']);
+}
+
+/**
+ * Get communication type distribution
+ */
+function getCommTypeDistribution(edges) {
+    const distribution = {};
+    edges.forEach(edge => {
+        const type = edge.communicationType || 'Unknown';
+        distribution[type] = (distribution[type] || 0) + 1;
+    });
+    return distribution;
+}
+
+/**
+ * Get frequency distribution
+ */
+function getFrequencyDistribution(edges) {
+    const distribution = {};
+    edges.forEach(edge => {
+        const freq = edge.frequency || 'Unknown';
+        distribution[freq] = (distribution[freq] || 0) + 1;
+    });
+    return distribution;
+}
+
+/**
+ * Get top N connected systems
+ */
+function getTopConnectedSystems(n) {
+    const { nodes, edges } = currentData;
+    const connectionCount = {};
+    
+    // Count connections for each system
+    edges.forEach(edge => {
+        connectionCount[edge.from] = (connectionCount[edge.from] || 0) + 1;
+        connectionCount[edge.to] = (connectionCount[edge.to] || 0) + 1;
+    });
+    
+    // Sort and get top N
+    const sorted = Object.entries(connectionCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n);
+    
+    return {
+        labels: sorted.map(s => s[0]),
+        data: sorted.map(s => s[1])
+    };
+}
+
+/**
+ * Get validation statistics
+ */
+function getValidationStats(edges) {
+    let complete = 0;
+    let incomplete = 0;
+    
+    edges.forEach(edge => {
+        if (edge.communicationType && edge.communicationType !== 'Unknown' &&
+            edge.frequency && edge.frequency !== 'Unknown' &&
+            edge.label && edge.label !== 'Unknown') {
+            complete++;
+        } else {
+            incomplete++;
+        }
+    });
+    
+    return { complete, incomplete };
+}
+
+/**
+ * Create a simple SVG bar chart
+ */
+function createSVGBarChart(canvasId, data, colors) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    
+    // Clear existing content
+    canvas.innerHTML = '';
+    
+    // Create SVG element
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '300');
+    svg.setAttribute('viewBox', '0 0 400 300');
+    
+    const entries = Object.entries(data);
+    const maxValue = Math.max(...entries.map(e => e[1]));
+    const barWidth = 300 / entries.length;
+    const chartHeight = 220;
+    const chartTop = 20;
+    
+    entries.forEach(([label, value], index) => {
+        const barHeight = maxValue > 0 ? (value / maxValue) * chartHeight : 0;
+        const x = index * barWidth + 20;
+        const y = chartTop + chartHeight - barHeight;
+        const color = colors[index % colors.length];
+        
+        // Create bar
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', Math.max(barWidth - 10, 20));
+        rect.setAttribute('height', barHeight);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('rx', '4');
+        svg.appendChild(rect);
+        
+        // Add value label on top of bar
+        const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        valueText.setAttribute('x', x + (barWidth - 10) / 2);
+        valueText.setAttribute('y', y - 5);
+        valueText.setAttribute('text-anchor', 'middle');
+        valueText.setAttribute('fill', 'rgba(255, 255, 255, 0.9)');
+        valueText.setAttribute('font-size', '12');
+        valueText.setAttribute('font-weight', 'bold');
+        valueText.textContent = value;
+        svg.appendChild(valueText);
+        
+        // Add label below bar
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', x + (barWidth - 10) / 2);
+        labelText.setAttribute('y', chartTop + chartHeight + 20);
+        labelText.setAttribute('text-anchor', 'middle');
+        labelText.setAttribute('fill', 'rgba(255, 255, 255, 0.7)');
+        labelText.setAttribute('font-size', '10');
+        // Truncate long labels
+        const truncated = label.length > MAX_LABEL_LENGTH 
+            ? label.substring(0, TRUNCATED_LABEL_LENGTH) + LABEL_ELLIPSIS 
+            : label;
+        labelText.textContent = truncated;
+        
+        // Add title for full label
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${label}: ${value}`;
+        labelText.appendChild(title);
+        
+        svg.appendChild(labelText);
+    });
+    
+    canvas.appendChild(svg);
+    return svg;
+}
+
+/**
+ * Create a pie chart (not used, keeping for compatibility)
+ */
+function createPieChart(canvasId, title, labels, data, colors) {
+    // Use bar chart instead
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
+    });
+    return createSVGBarChart(canvasId, chartData, colors);
+}
+
+/**
+ * Create a bar chart (not used, keeping for compatibility)
+ */
+function createBarChart(canvasId, title, labels, data) {
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
+    });
+    return createSVGBarChart(canvasId, chartData, ['#00d4ff']);
+}
+
+/**
+ * Create a doughnut chart (not used, keeping for compatibility)
+ */
+function createDoughnutChart(canvasId, title, labels, data, colors) {
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
+    });
+    return createSVGBarChart(canvasId, chartData, colors);
+}
+
+// ==================== EXECUTIVE VIEW FUNCTIONS ====================
+
+/**
+ * Initialize the executive view
+ */
+function initializeExecutiveView() {
+    if (!currentData) return;
+    
+    calculateExecutiveMetrics();
+    displayCriticalPathSystems();
+    createRiskImpactChart();
+    generateRecommendations();
+}
+
+/**
+ * Calculate executive KPIs
+ */
+function calculateExecutiveMetrics() {
+    const { nodes, edges } = currentData;
+    
+    // Calculate connection counts for each system
+    const connectionCount = {};
+    edges.forEach(edge => {
+        connectionCount[edge.from] = (connectionCount[edge.from] || 0) + 1;
+        connectionCount[edge.to] = (connectionCount[edge.to] || 0) + 1;
+    });
+    
+    // Determine critical systems (systems with high connection count)
+    const avgConnections = Object.values(connectionCount).reduce((a, b) => a + b, 0) / nodes.length;
+    const criticalSystems = Object.values(connectionCount).filter(c => c > avgConnections * 1.5).length;
+    document.getElementById('execCriticalSystems').textContent = criticalSystems;
+    
+    // Calculate overall risk score
+    const maxConnections = Math.max(...Object.values(connectionCount));
+    const riskScore = maxConnections > 10 ? 'High' : maxConnections > 5 ? 'Medium' : 'Low';
+    document.getElementById('execRiskScore').textContent = riskScore;
+    
+    // Calculate complexity
+    const complexity = edges.length / nodes.length;
+    const complexityLevel = complexity > 5 ? 'High' : complexity > 3 ? 'Medium' : 'Low';
+    document.getElementById('execComplexity').textContent = complexityLevel;
+}
+
+/**
+ * Display critical path systems
+ */
+function displayCriticalPathSystems() {
+    const { nodes, edges } = currentData;
+    const connectionCount = {};
+    
+    // Count connections for each system
+    edges.forEach(edge => {
+        connectionCount[edge.from] = (connectionCount[edge.from] || 0) + 1;
+        connectionCount[edge.to] = (connectionCount[edge.to] || 0) + 1;
+    });
+    
+    // Sort by connection count
+    const sorted = Object.entries(connectionCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+    
+    const listHTML = sorted.map(([system, count]) => {
+        const criticality = count > 8 ? 'high' : count > 4 ? 'medium' : 'low';
+        const criticalityLabel = criticality.charAt(0).toUpperCase() + criticality.slice(1);
+        
+        return `
+            <div class="critical-system-item ${criticality}">
+                <div class="system-info">
+                    <div class="system-name">${system}</div>
+                    <div class="system-details">${count} connections • Impact: ${criticalityLabel}</div>
+                </div>
+                <div class="criticality-badge ${criticality}">${criticalityLabel}</div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('criticalPathList').innerHTML = listHTML;
+}
+
+/**
+ * Create risk impact chart
+ */
+function createRiskImpactChart() {
+    const { nodes, edges } = currentData;
+    const connectionCount = {};
+    
+    // Count connections for each system
+    edges.forEach(edge => {
+        connectionCount[edge.from] = (connectionCount[edge.from] || 0) + 1;
+        connectionCount[edge.to] = (connectionCount[edge.to] || 0) + 1;
+    });
+    
+    // Create scatter plot data (connections vs risk)
+    // Risk is calculated deterministically based on connection count and system name hash
+    const scatterData = nodes.map(node => {
+        const connections = connectionCount[node.id] || 0;
+        // Calculate a deterministic risk factor based on system name
+        // This provides consistent visualization while simulating varying risk levels
+        const nameHash = node.label.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const riskFactor = MIN_RISK_FACTOR + ((nameHash % RISK_HASH_MODULO) / RISK_SCALE_DIVISOR);
+        const risk = connections * riskFactor;
+        return {
+            x: connections,
+            y: risk,
+            label: node.label
+        };
+    });
+    
+    const canvas = document.getElementById('riskImpactChart');
+    if (!canvas) return;
+    
+    // Clear existing content
+    canvas.innerHTML = '';
+    
+    // Create SVG scatter plot
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '400');
+    svg.setAttribute('viewBox', '0 0 500 400');
+    
+    const maxX = Math.max(...scatterData.map(d => d.x)) || 10;
+    const maxY = Math.max(...scatterData.map(d => d.y)) || 10;
+    const chartWidth = 400;
+    const chartHeight = 320;
+    const marginLeft = 60;
+    const marginBottom = 60;
+    
+    // Draw axes
+    const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    xAxis.setAttribute('x1', marginLeft);
+    xAxis.setAttribute('y1', chartHeight);
+    xAxis.setAttribute('x2', marginLeft + chartWidth);
+    xAxis.setAttribute('y2', chartHeight);
+    xAxis.setAttribute('stroke', 'rgba(255, 255, 255, 0.3)');
+    xAxis.setAttribute('stroke-width', '2');
+    svg.appendChild(xAxis);
+    
+    const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    yAxis.setAttribute('x1', marginLeft);
+    yAxis.setAttribute('y1', 20);
+    yAxis.setAttribute('x2', marginLeft);
+    yAxis.setAttribute('y2', chartHeight);
+    yAxis.setAttribute('stroke', 'rgba(255, 255, 255, 0.3)');
+    yAxis.setAttribute('stroke-width', '2');
+    svg.appendChild(yAxis);
+    
+    // Add axis labels
+    const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    xLabel.setAttribute('x', marginLeft + chartWidth / 2);
+    xLabel.setAttribute('y', chartHeight + 40);
+    xLabel.setAttribute('text-anchor', 'middle');
+    xLabel.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+    xLabel.setAttribute('font-size', '12');
+    xLabel.textContent = 'Number of Connections';
+    svg.appendChild(xLabel);
+    
+    const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    yLabel.setAttribute('x', 15);
+    yLabel.setAttribute('y', chartHeight / 2);
+    yLabel.setAttribute('text-anchor', 'middle');
+    yLabel.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+    yLabel.setAttribute('font-size', '12');
+    yLabel.setAttribute('transform', `rotate(-90, 15, ${chartHeight / 2})`);
+    yLabel.textContent = 'Risk Impact Score';
+    svg.appendChild(yLabel);
+    
+    // Plot points
+    scatterData.forEach(point => {
+        const x = marginLeft + (point.x / maxX) * chartWidth;
+        const y = chartHeight - (point.y / maxY) * (chartHeight - 20);
+        
+        let color;
+        if (point.y > 8) color = '#ef4444';
+        else if (point.y > 4) color = '#fbbf24';
+        else color = '#10b981';
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', '6');
+        circle.setAttribute('fill', color);
+        circle.setAttribute('stroke', 'rgba(255, 255, 255, 0.5)');
+        circle.setAttribute('stroke-width', '1');
+        
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${point.label}\nConnections: ${point.x}\nRisk: ${point.y.toFixed(1)}`;
+        circle.appendChild(title);
+        
+        svg.appendChild(circle);
+    });
+    
+    canvas.appendChild(svg);
+}
+
+/**
+ * Generate strategic recommendations
+ */
+function generateRecommendations() {
+    const { nodes, edges } = currentData;
+    const connectionCount = {};
+    
+    // Count connections for each system
+    edges.forEach(edge => {
+        connectionCount[edge.from] = (connectionCount[edge.from] || 0) + 1;
+        connectionCount[edge.to] = (connectionCount[edge.to] || 0) + 1;
+    });
+    
+    const recommendations = [];
+    
+    // Check for highly connected systems
+    const maxConnections = Math.max(...Object.values(connectionCount));
+    if (maxConnections > HIGH_CONNECTION_THRESHOLD) {
+        recommendations.push({
+            title: 'High System Coupling Detected',
+            description: 'Several systems have a high number of connections, creating potential single points of failure. Consider implementing redundancy or load balancing strategies for critical systems.'
+        });
+    }
+    
+    // Check for data quality
+    const validationStats = getValidationStats(edges);
+    const qualityPercent = (validationStats.complete / (validationStats.complete + validationStats.incomplete)) * 100;
+    if (qualityPercent < 90) {
+        recommendations.push({
+            title: 'Improve Data Quality',
+            description: `Only ${qualityPercent.toFixed(0)}% of interface data is complete. Review and update missing communication types, frequencies, and data formats to improve monitoring and decision-making.`
+        });
+    }
+    
+    // Check for communication type diversity
+    const commTypes = getCommTypeDistribution(edges);
+    const batchCount = commTypes['Batch'] || 0;
+    const totalEdges = edges.length;
+    if (batchCount / totalEdges > BATCH_DOMINANCE_THRESHOLD) {
+        recommendations.push({
+            title: 'Consider Real-time Integration',
+            description: 'Over 60% of interfaces use batch processing. Evaluate opportunities to implement real-time or API-based integrations for improved data freshness and responsiveness.'
+        });
+    }
+    
+    // Always recommend monitoring
+    recommendations.push({
+        title: 'Implement Comprehensive Monitoring',
+        description: 'Establish monitoring and alerting for all critical interface connections. Track interface uptime, data quality, and performance metrics to proactively identify and resolve issues.'
+    });
+    
+    // Display recommendations
+    const listHTML = recommendations.map(rec => `
+        <div class="recommendation-item">
+            <div class="recommendation-title">${rec.title}</div>
+            <div class="recommendation-description">${rec.description}</div>
+        </div>
+    `).join('');
+    
+    document.getElementById('recommendationsList').innerHTML = listHTML;
+}
+
+/**
+ * Export executive report as PDF (using browser print)
+ */
+async function exportExecutiveReport() {
+    // Create a printable version of the executive view
+    const printContent = createPrintableReport();
+    
+    // Open print dialog
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Executive Management Report</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    color: #000;
+                    background: #fff;
+                }
+                h1 { color: #00d4ff; text-align: center; }
+                h2 { color: #333; margin-top: 30px; border-bottom: 2px solid #00d4ff; padding-bottom: 5px; }
+                .kpi-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+                .kpi-card {
+                    border: 2px solid #ddd;
+                    padding: 15px;
+                    border-radius: 8px;
+                }
+                .kpi-label { font-weight: bold; color: #666; }
+                .kpi-value { font-size: 24px; color: #00d4ff; margin: 10px 0; }
+                .system-item {
+                    padding: 10px;
+                    margin: 5px 0;
+                    border-left: 4px solid #00d4ff;
+                    background: #f5f5f5;
+                }
+                .recommendation {
+                    padding: 15px;
+                    margin: 10px 0;
+                    border-left: 4px solid #00d4ff;
+                    background: #f9f9f9;
+                }
+                .rec-title { font-weight: bold; margin-bottom: 5px; }
+                @media print {
+                    body { padding: 10mm; }
+                    .kpi-grid { page-break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Trigger print after a short delay to ensure content is loaded
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+    
+    showStatus('Opening print dialog for report export', 'success');
+}
+
+/**
+ * Create printable HTML report
+ */
+function createPrintableReport() {
+    const criticalSystems = document.getElementById('execCriticalSystems').textContent;
+    const riskScore = document.getElementById('execRiskScore').textContent;
+    const complexity = document.getElementById('execComplexity').textContent;
+    
+    let html = `
+        <h1>Executive Management Report</h1>
+        <p style="text-align: center; color: #666;">Interface Consolidation Analysis</p>
+        <p style="text-align: center; color: #999;">Generated: ${new Date().toLocaleDateString()}</p>
+        
+        <h2>Key Performance Indicators</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Critical Systems</div>
+                <div class="kpi-value">${criticalSystems}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Risk Score</div>
+                <div class="kpi-value">${riskScore}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Integration Complexity</div>
+                <div class="kpi-value">${complexity}</div>
+            </div>
+        </div>
+        
+        <h2>Critical Path Systems</h2>
+    `;
+    
+    const criticalPathList = document.getElementById('criticalPathList');
+    const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
+    
+    criticalItems.forEach((item, index) => {
+        if (index < 10) {
+            const name = item.querySelector('.system-name').textContent;
+            const details = item.querySelector('.system-details').textContent;
+            html += `<div class="system-item"><strong>${index + 1}. ${name}</strong><br>${details}</div>`;
+        }
+    });
+    
+    html += '<h2>Strategic Recommendations</h2>';
+    
+    const recommendationsList = document.getElementById('recommendationsList');
+    const recItems = recommendationsList.querySelectorAll('.recommendation-item');
+    
+    recItems.forEach((item, index) => {
+        const title = item.querySelector('.recommendation-title').textContent;
+        const description = item.querySelector('.recommendation-description').textContent;
+        html += `
+            <div class="recommendation">
+                <div class="rec-title">${index + 1}. ${title}</div>
+                <div>${description}</div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+
