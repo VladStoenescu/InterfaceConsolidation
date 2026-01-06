@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface Consolidation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Interface Consolidation Tool</h1>
+        <p class="description">Upload an Excel file to visualize system interfaces</p>
+        
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <button id="uploadBtn" onclick="handleFileUpload()">Upload and Visualize</button>
+        </div>
+
+        <div id="legend" class="legend" style="display: none;">
+            <h3>Legend</h3>
+            <div class="legend-section">
+                <h4>Frequency</h4>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#2196F3" stroke-width="3"/>
+                    </svg>
+                    <span>Daily</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#4CAF50" stroke-width="3" stroke-dasharray="10,5"/>
+                    </svg>
+                    <span>Weekly</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FF9800" stroke-width="3" stroke-dasharray="2,5"/>
+                    </svg>
+                    <span>Monthly</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#9E9E9E" stroke-width="3"/>
+                    </svg>
+                    <span>Yearly</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#E91E63" stroke-width="2"/>
+                    </svg>
+                    <span>On Demand</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#607D8B" stroke-width="2"/>
+                    </svg>
+                    <span>Other/Unknown</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status"></div>
+        
+        <div id="network" class="network-container">
+            <svg id="networkSvg" width="100%" height="100%"></svg>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
