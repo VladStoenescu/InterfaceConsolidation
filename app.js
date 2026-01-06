@@ -260,7 +260,8 @@ function createNetworkVisualization(nodes, edges) {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Curve offset perpendicular to the line (creates curved paths)
-        const curveOffset = Math.min(distance * 0.2, 50);
+        // Use a more pronounced curve for better visual separation
+        const curveOffset = Math.min(distance * 0.25, 80);
         const midX = (fromPos.x + toPos.x) / 2;
         const midY = (fromPos.y + toPos.y) / 2;
         
@@ -289,9 +290,9 @@ function createNetworkVisualization(nodes, edges) {
         
         g.appendChild(path);
         
-        // Position label along the curve (at the control point offset slightly)
-        const labelX = midX + perpX * 0.5;
-        const labelY = midY + perpY * 0.5;
+        // Position label along the curve (at the control point offset)
+        const labelX = midX + perpX * 0.6;
+        const labelY = midY + perpY * 0.6;
         
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', labelX);
@@ -592,7 +593,7 @@ function updateEdges() {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Curve offset perpendicular to the line
-        const curveOffset = Math.min(distance * 0.2, 50);
+        const curveOffset = Math.min(distance * 0.25, 80);
         const midX = (fromPos.x + toPos.x) / 2;
         const midY = (fromPos.y + toPos.y) / 2;
         
