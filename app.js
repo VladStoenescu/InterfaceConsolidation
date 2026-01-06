@@ -359,6 +359,71 @@ function createNetworkVisualization(nodes, edges) {
     g.setAttribute('id', 'mainGroup');
     svg.appendChild(g);
     
+    // Create defs for gradients and filters
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        svg.insertBefore(defs, g);
+    }
+    
+    // Clear existing defs
+    defs.innerHTML = '';
+    
+    // Create node gradient
+    const nodeGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeGradient.setAttribute('id', 'nodeGradient');
+    nodeGradient.setAttribute('x1', '0%');
+    nodeGradient.setAttribute('y1', '0%');
+    nodeGradient.setAttribute('x2', '100%');
+    nodeGradient.setAttribute('y2', '100%');
+    nodeGradient.innerHTML = `
+        <stop offset="0%" style="stop-color:rgba(0, 212, 255, 0.3);stop-opacity:1" />
+        <stop offset="100%" style="stop-color:rgba(168, 85, 247, 0.3);stop-opacity:1" />
+    `;
+    defs.appendChild(nodeGradient);
+    
+    // Create node stroke gradient
+    const nodeStrokeGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeStrokeGradient.setAttribute('id', 'nodeStrokeGradient');
+    nodeStrokeGradient.setAttribute('x1', '0%');
+    nodeStrokeGradient.setAttribute('y1', '0%');
+    nodeStrokeGradient.setAttribute('x2', '100%');
+    nodeStrokeGradient.setAttribute('y2', '100%');
+    nodeStrokeGradient.innerHTML = `
+        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    `;
+    defs.appendChild(nodeStrokeGradient);
+    
+    // Create glow filter for nodes
+    const nodeGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    nodeGlow.setAttribute('id', 'nodeGlow');
+    nodeGlow.setAttribute('x', '-50%');
+    nodeGlow.setAttribute('y', '-50%');
+    nodeGlow.setAttribute('width', '200%');
+    nodeGlow.setAttribute('height', '200%');
+    nodeGlow.innerHTML = `
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.4 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.5 0" result="glow"/>
+        <feMerge>
+            <feMergeNode in="glow"/>
+            <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+    `;
+    defs.appendChild(nodeGlow);
+    
+    // Create glow filter for text
+    const textGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    textGlow.setAttribute('id', 'textGlow');
+    textGlow.innerHTML = `
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur"/>
+        <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+    `;
+    defs.appendChild(textGlow);
+    
     // Draw edges with curves
     edges.forEach(edge => {
         const fromPos = positions[edge.from];
@@ -410,8 +475,9 @@ function createNetworkVisualization(nodes, edges) {
         text.setAttribute('y', labelY);
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('font-size', '11');
-        text.setAttribute('fill', '#333');
-        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('font-weight', '600');
+        text.setAttribute('fill', '#ffffff');
+        text.setAttribute('filter', 'url(#textGlow)');
         text.textContent = edge.label;
         
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -426,9 +492,10 @@ function createNetworkVisualization(nodes, edges) {
             textBg.setAttribute('height', bbox.height + TEXT_BG_PADDING * 2);
         }, TEXT_MEASUREMENT_DELAY);
         
-        textBg.setAttribute('fill', 'white');
-        textBg.setAttribute('opacity', '0.85');
-        textBg.setAttribute('rx', '3');
+        textBg.setAttribute('fill', 'rgba(10, 14, 39, 0.85)');
+        textBg.setAttribute('stroke', 'rgba(0, 212, 255, 0.3)');
+        textBg.setAttribute('stroke-width', '1');
+        textBg.setAttribute('rx', '4');
         
         g.appendChild(textBg);
         g.appendChild(text);
@@ -446,25 +513,28 @@ function createNetworkVisualization(nodes, edges) {
         nodeGroup.setAttribute('data-id', node.id);
         nodeGroup.style.cursor = 'move';
         
-        // Create rectangle
+        // Create rectangle with gradient
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         const textWidth = node.label.length * CHAR_WIDTH_ESTIMATE;
         rect.setAttribute('x', pos.x - textWidth / 2 - NODE_PADDING);
         rect.setAttribute('y', pos.y - NODE_HEIGHT / 2);
         rect.setAttribute('width', textWidth + NODE_PADDING * 2);
         rect.setAttribute('height', NODE_HEIGHT);
-        rect.setAttribute('fill', '#97C2FC');
-        rect.setAttribute('stroke', '#2B7CE9');
+        rect.setAttribute('fill', 'url(#nodeGradient)');
+        rect.setAttribute('stroke', 'url(#nodeStrokeGradient)');
         rect.setAttribute('stroke-width', '2');
-        rect.setAttribute('rx', '5');
+        rect.setAttribute('rx', '8');
+        rect.setAttribute('filter', 'url(#nodeGlow)');
         
-        // Create text
+        // Create text with shadow
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', pos.x);
         text.setAttribute('y', pos.y + 5);
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('font-size', '14');
-        text.setAttribute('fill', '#000');
+        text.setAttribute('font-weight', '600');
+        text.setAttribute('fill', '#ffffff');
+        text.setAttribute('filter', 'url(#textGlow)');
         text.textContent = node.label;
         
         nodeGroup.appendChild(rect);
