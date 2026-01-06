@@ -220,6 +220,34 @@ function getEdgeStyle(frequency) {
 }
 
 /**
+ * Calculate curve control points for quadratic bezier curve between two positions
+ */
+function calculateCurveControlPoint(fromPos, toPos) {
+    const dx = toPos.x - fromPos.x;
+    const dy = toPos.y - fromPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Curve offset perpendicular to the line (creates curved paths)
+    // Use a more pronounced curve for better visual separation
+    const curveOffset = Math.min(distance * 0.25, 80);
+    const midX = (fromPos.x + toPos.x) / 2;
+    const midY = (fromPos.y + toPos.y) / 2;
+    
+    // Perpendicular offset
+    const perpX = -dy / distance * curveOffset;
+    const perpY = dx / distance * curveOffset;
+    
+    return {
+        controlX: midX + perpX,
+        controlY: midY + perpY,
+        midX,
+        midY,
+        perpX,
+        perpY
+    };
+}
+
+/**
  * Create network visualization using SVG
  */
 function createNetworkVisualization(nodes, edges) {
@@ -241,7 +269,7 @@ function createNetworkVisualization(nodes, edges) {
     g.setAttribute('id', 'mainGroup');
     svg.appendChild(g);
     
-    // Draw edges
+    // Draw edges with curves
     edges.forEach(edge => {
         const fromPos = positions[edge.from];
         const toPos = positions[edge.to];
@@ -254,41 +282,43 @@ function createNetworkVisualization(nodes, edges) {
         const markerId = `arrow-${edge.from}-${edge.to}-${Math.random().toString(36).substr(2, 9)}`;
         createArrowMarker(svg, markerId, style.color);
         
-        // Create line
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', fromPos.x);
-        line.setAttribute('y1', fromPos.y);
-        line.setAttribute('x2', toPos.x);
-        line.setAttribute('y2', toPos.y);
-        line.setAttribute('stroke', style.color);
-        line.setAttribute('stroke-width', style.width);
+        // Calculate curve control points
+        const { controlX, controlY, midX, midY, perpX, perpY } = calculateCurveControlPoint(fromPos, toPos);
+        
+        // Create curved path instead of straight line
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
+        path.setAttribute('d', pathData);
+        path.setAttribute('stroke', style.color);
+        path.setAttribute('stroke-width', style.width);
+        path.setAttribute('fill', 'none');
         if (style.dasharray) {
-            line.setAttribute('stroke-dasharray', style.dasharray);
+            path.setAttribute('stroke-dasharray', style.dasharray);
         }
-        line.setAttribute('marker-end', `url(#${markerId})`);
+        path.setAttribute('marker-end', `url(#${markerId})`);
         
         const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
         title.textContent = edge.tooltip;
-        line.appendChild(title);
+        path.appendChild(title);
         
-        g.appendChild(line);
+        g.appendChild(path);
         
-        // Add label
-        const midX = (fromPos.x + toPos.x) / 2;
-        const midY = (fromPos.y + toPos.y) / 2;
+        // Position label along the curve (at the control point offset)
+        const labelX = midX + perpX * 0.6;
+        const labelY = midY + perpY * 0.6;
         
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', midX);
-        text.setAttribute('y', midY - 5);
+        text.setAttribute('x', labelX);
+        text.setAttribute('y', labelY);
         text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('font-size', '12');
+        text.setAttribute('font-size', '11');
         text.setAttribute('fill', '#333');
         text.setAttribute('font-weight', 'bold');
         text.textContent = edge.label;
         
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         // Use default dimensions initially (getBBox needs the element to be in DOM)
-        const bbox = { x: midX - DEFAULT_TEXT_WIDTH/2, y: midY - DEFAULT_TEXT_HEIGHT, width: DEFAULT_TEXT_WIDTH, height: DEFAULT_TEXT_HEIGHT };
+        const bbox = { x: labelX - DEFAULT_TEXT_WIDTH/2, y: labelY - DEFAULT_TEXT_HEIGHT, width: DEFAULT_TEXT_WIDTH, height: DEFAULT_TEXT_HEIGHT };
         // Update with actual dimensions after a delay to allow DOM to render
         setTimeout(() => {
             const bbox = text.getBBox();
@@ -299,7 +329,8 @@ function createNetworkVisualization(nodes, edges) {
         }, TEXT_MEASUREMENT_DELAY);
         
         textBg.setAttribute('fill', 'white');
-        textBg.setAttribute('opacity', '0.8');
+        textBg.setAttribute('opacity', '0.85');
+        textBg.setAttribute('rx', '3');
         
         g.appendChild(textBg);
         g.appendChild(text);
@@ -356,26 +387,111 @@ function createNetworkVisualization(nodes, edges) {
 }
 
 /**
- * Calculate positions for nodes in a circle
+ * Calculate positions for nodes using force-directed layout
  */
 function calculateNodePositions(nodes, width, height) {
     const positions = {};
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) * 0.35;
     
     if (nodes.length === 1) {
         positions[nodes[0].id] = { x: centerX, y: centerY };
         return positions;
     }
     
-    nodes.forEach((node, index) => {
-        const angle = (2 * Math.PI * index) / nodes.length - Math.PI / 2;
+    // Initialize nodes with random positions in a larger spread
+    const margin = 100;
+    nodes.forEach(node => {
         positions[node.id] = {
-            x: centerX + radius * Math.cos(angle),
-            y: centerY + radius * Math.sin(angle)
+            x: margin + Math.random() * (width - 2 * margin),
+            y: margin + Math.random() * (height - 2 * margin),
+            vx: 0,
+            vy: 0
         };
     });
+    
+    // Force-directed layout parameters
+    const iterations = 100;
+    const repulsionStrength = 8000;
+    const attractionStrength = 0.01;
+    const dampening = 0.85;
+    const minDistance = 150; // Minimum distance between nodes
+    
+    // Build edge map for attraction forces
+    const edgeMap = new Map();
+    if (currentData && currentData.edges) {
+        currentData.edges.forEach(edge => {
+            if (!edgeMap.has(edge.from)) edgeMap.set(edge.from, []);
+            if (!edgeMap.has(edge.to)) edgeMap.set(edge.to, []);
+            edgeMap.get(edge.from).push(edge.to);
+            edgeMap.get(edge.to).push(edge.from);
+        });
+    }
+    
+    // Run force-directed layout simulation
+    for (let iter = 0; iter < iterations; iter++) {
+        // Apply repulsion between all nodes
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const node1 = nodes[i];
+                const node2 = nodes[j];
+                const pos1 = positions[node1.id];
+                const pos2 = positions[node2.id];
+                
+                const dx = pos2.x - pos1.x;
+                const dy = pos2.y - pos1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                
+                // Strong repulsion force
+                const force = repulsionStrength / (distance * distance);
+                const fx = (dx / distance) * force;
+                const fy = (dy / distance) * force;
+                
+                pos1.vx -= fx;
+                pos1.vy -= fy;
+                pos2.vx += fx;
+                pos2.vy += fy;
+            }
+        }
+        
+        // Apply attraction for connected nodes
+        if (edgeMap.size > 0) {
+            nodes.forEach(node => {
+                const neighbors = edgeMap.get(node.id) || [];
+                const pos1 = positions[node.id];
+                
+                neighbors.forEach(neighborId => {
+                    const pos2 = positions[neighborId];
+                    if (!pos2) return;
+                    
+                    const dx = pos2.x - pos1.x;
+                    const dy = pos2.y - pos1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    // Attraction force
+                    const force = distance * attractionStrength;
+                    const fx = (dx / distance) * force;
+                    const fy = (dy / distance) * force;
+                    
+                    pos1.vx += fx;
+                    pos1.vy += fy;
+                });
+            });
+        }
+        
+        // Update positions with dampening
+        nodes.forEach(node => {
+            const pos = positions[node.id];
+            pos.x += pos.vx;
+            pos.y += pos.vy;
+            pos.vx *= dampening;
+            pos.vy *= dampening;
+            
+            // Keep within bounds with margin
+            pos.x = Math.max(margin, Math.min(width - margin, pos.x));
+            pos.y = Math.max(margin, Math.min(height - margin, pos.y));
+        });
+    }
     
     return positions;
 }
@@ -463,7 +579,7 @@ function updateEdges() {
     if (!currentData) return;
     
     const svg = document.getElementById('networkSvg');
-    const lines = svg.querySelectorAll('line');
+    const paths = svg.querySelectorAll('path[d]');
     const nodes = svg.querySelectorAll('.node');
     
     const positions = {};
@@ -475,20 +591,22 @@ function updateEdges() {
         };
     });
     
-    let lineIndex = 0;
+    let pathIndex = 0;
     currentData.edges.forEach(edge => {
         const fromPos = positions[edge.from];
         const toPos = positions[edge.to];
         
-        if (!fromPos || !toPos || lineIndex >= lines.length) return;
+        if (!fromPos || !toPos || pathIndex >= paths.length) return;
         
-        const line = lines[lineIndex];
-        line.setAttribute('x1', fromPos.x);
-        line.setAttribute('y1', fromPos.y);
-        line.setAttribute('x2', toPos.x);
-        line.setAttribute('y2', toPos.y);
+        const path = paths[pathIndex];
         
-        lineIndex++;
+        // Calculate curve control points
+        const { controlX, controlY } = calculateCurveControlPoint(fromPos, toPos);
+        
+        const pathData = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
+        path.setAttribute('d', pathData);
+        
+        pathIndex++;
     });
 }
 

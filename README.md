@@ -6,6 +6,8 @@ A simple web application to consolidate an Excel file into a visual representati
 
 - **Excel File Import**: Upload Excel files (.xlsx, .xls) containing interface data
 - **Visual Network Diagram**: Automatically generates an interactive network diagram showing system interfaces
+- **Force-Directed Layout**: Uses a physics-based algorithm to distribute nodes naturally and reduce clutter
+- **Curved Edges**: Connections use curved paths to minimize visual overlap and improve readability
 - **Frequency-Based Differentiation**: Lines are styled differently based on communication frequency:
   - **Daily**: Solid blue line (thick)
   - **Weekly**: Dashed green line
@@ -51,7 +53,7 @@ The Excel file should contain the following columns:
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Excel Parsing**: SheetJS (xlsx library)
-- **Visualization**: Custom SVG-based network diagram
+- **Visualization**: Custom SVG-based network diagram with force-directed layout algorithm
 - **No Backend Required**: Runs entirely in the browser
 
 ## Browser Compatibility
