@@ -27,10 +27,74 @@
             </div>
         </div>
 
+        <div class="filter-section" id="filterSection" style="display: none;">
+            <div class="filter-controls">
+                <label for="commTypeFilter">Filter by Communication Type:</label>
+                <select id="commTypeFilter" onchange="handleFilterChange()">
+                    <option value="all">All Types</option>
+                    <option value="batch">Batch</option>
+                    <option value="api">API/Online</option>
+                    <option value="streaming">Streaming/Real-time</option>
+                    <option value="file">File Transfer</option>
+                    <option value="queue">Message Queue</option>
+                    <option value="mixed">Mixed/Hybrid</option>
+                </select>
+                <label for="frequencyFilter">Filter by Frequency:</label>
+                <select id="frequencyFilter" onchange="handleFilterChange()">
+                    <option value="all">All Frequencies</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                    <option value="demand">On Demand</option>
+                </select>
+                <button onclick="resetFilters()">Reset Filters</button>
+            </div>
+        </div>
+
         <div id="legend" class="legend" style="display: none;">
             <h3>Legend</h3>
             <div class="legend-section">
-                <h4>Frequency</h4>
+                <h4>Communication Type</h4>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FF6B6B" stroke-width="4"/>
+                    </svg>
+                    <span>Batch</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#4ECDC4" stroke-width="3" stroke-dasharray="8,4"/>
+                    </svg>
+                    <span>API/Online</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#95E1D3" stroke-width="3" stroke-dasharray="3,3"/>
+                    </svg>
+                    <span>Streaming/Real-time</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#F38181" stroke-width="3" stroke-dasharray="10,5,3,5"/>
+                    </svg>
+                    <span>Mixed/Hybrid</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#AA96DA" stroke-width="3" stroke-dasharray="5,5"/>
+                    </svg>
+                    <span>File Transfer</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FCBAD3" stroke-width="3" stroke-dasharray="12,3,3,3"/>
+                    </svg>
+                    <span>Message Queue</span>
+                </div>
+            </div>
+            <div class="legend-section">
+                <h4>Frequency (fallback if no Communication Type)</h4>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#2196F3" stroke-width="3"/>

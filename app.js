@@ -1,5 +1,10 @@
 // Global variables
 let currentData = null;
+let filteredData = null; // Store filtered data
+let activeFilters = {
+    communicationType: 'all',
+    frequency: 'all'
+};
 let isDragging = false;
 let draggedNode = null;
 let offsetX = 0;
@@ -89,8 +94,9 @@ function processAndVisualize(data) {
         // Enable version controls
         enableVersionControls();
         
-        // Show legend
+        // Show legend and filters
         document.getElementById('legend').style.display = 'block';
+        document.getElementById('filterSection').style.display = 'block';
         
     } catch (error) {
         showStatus('Error creating visualization: ' + error.message, 'error');
@@ -111,6 +117,7 @@ function extractNodesAndEdges(data) {
         const toApp = getFieldValue(row, ['To App Key', 'to app key', 'TO APP KEY', 'ToAppKey', 'Target', 'Destination']);
         const dataForm = getFieldValue(row, ['Data Form', 'data form', 'DATA FORM', 'DataForm', 'Format', 'Type']) || 'Unknown';
         const frequency = getFieldValue(row, ['Frequency', 'frequency', 'FREQUENCY', 'Freq']) || 'Unknown';
+        const communicationType = getFieldValue(row, ['Communication Type', 'communication type', 'COMMUNICATION TYPE', 'CommunicationType', 'Comm Type', 'Type', 'Mode']) || 'Unknown';
         
         // Skip rows without required fields
         if (!fromApp || !toApp) {
@@ -138,7 +145,8 @@ function extractNodesAndEdges(data) {
             to: toApp,
             label: dataForm,
             frequency: frequency,
-            tooltip: `From: ${fromApp}\nTo: ${toApp}\nData Form: ${dataForm}\nFrequency: ${frequency}`
+            communicationType: communicationType,
+            tooltip: `From: ${fromApp}\nTo: ${toApp}\nData Form: ${dataForm}\nFrequency: ${frequency}\nCommunication Type: ${communicationType}`
         });
     });
     
@@ -165,6 +173,81 @@ function getFieldValue(row, possibleKeys) {
         }
     }
     return null;
+}
+
+/**
+ * Get edge styling based on communication type
+ */
+function getCommunicationTypeStyle(communicationType) {
+    const type = communicationType.toLowerCase();
+    
+    // Batch processing - thick solid line
+    if (type.includes('batch')) {
+        return {
+            color: '#FF6B6B',
+            width: 4,
+            dasharray: '',
+            opacity: 1
+        };
+    }
+    
+    // API/Online - dashed line
+    if (type.includes('api') || type.includes('online') || type.includes('rest') || type.includes('http')) {
+        return {
+            color: '#4ECDC4',
+            width: 3,
+            dasharray: '8,4',
+            opacity: 1
+        };
+    }
+    
+    // Streaming - animated dashed line (dotted)
+    if (type.includes('stream') || type.includes('real-time') || type.includes('realtime')) {
+        return {
+            color: '#95E1D3',
+            width: 3,
+            dasharray: '3,3',
+            opacity: 1
+        };
+    }
+    
+    // Mixed/Hybrid - alternating dash pattern
+    if (type.includes('mixed') || type.includes('hybrid')) {
+        return {
+            color: '#F38181',
+            width: 3,
+            dasharray: '10,5,3,5',
+            opacity: 1
+        };
+    }
+    
+    // File Transfer - thick dotted
+    if (type.includes('file') || type.includes('ftp') || type.includes('sftp')) {
+        return {
+            color: '#AA96DA',
+            width: 3,
+            dasharray: '5,5',
+            opacity: 1
+        };
+    }
+    
+    // Message Queue - double dash
+    if (type.includes('queue') || type.includes('mq') || type.includes('message')) {
+        return {
+            color: '#FCBAD3',
+            width: 3,
+            dasharray: '12,3,3,3',
+            opacity: 1
+        };
+    }
+    
+    // Default/Unknown - thin gray line
+    return {
+        color: '#999999',
+        width: 2,
+        dasharray: '',
+        opacity: 0.6
+    };
 }
 
 /**
@@ -283,7 +366,12 @@ function createNetworkVisualization(nodes, edges) {
         
         if (!fromPos || !toPos) return;
         
-        const style = getEdgeStyle(edge.frequency);
+        // Use communication type for styling if available, otherwise fall back to frequency
+        const hasValidCommType = edge.communicationType && 
+            edge.communicationType.toLowerCase() !== 'unknown';
+        const style = hasValidCommType
+            ? getCommunicationTypeStyle(edge.communicationType)
+            : getEdgeStyle(edge.frequency);
         
         // Create arrow marker
         const markerId = `arrow-${edge.from}-${edge.to}-${Math.random().toString(36).substr(2, 9)}`;
@@ -299,6 +387,9 @@ function createNetworkVisualization(nodes, edges) {
         path.setAttribute('stroke', style.color);
         path.setAttribute('stroke-width', style.width);
         path.setAttribute('fill', 'none');
+        if (style.opacity) {
+            path.setAttribute('opacity', style.opacity);
+        }
         if (style.dasharray) {
             path.setAttribute('stroke-dasharray', style.dasharray);
         }
@@ -650,6 +741,131 @@ function showStatus(message, type) {
     }
 }
 
+/**
+ * Handle filter change
+ */
+function handleFilterChange() {
+    if (!currentData) return;
+    
+    const commTypeFilter = document.getElementById('commTypeFilter').value;
+    const frequencyFilter = document.getElementById('frequencyFilter').value;
+    
+    activeFilters.communicationType = commTypeFilter;
+    activeFilters.frequency = frequencyFilter;
+    
+    applyFilters();
+}
+
+/**
+ * Check if a communication type matches the filter
+ */
+function matchesCommunicationType(commType, filter) {
+    if (!commType) return false;
+    const type = commType.toLowerCase();
+    
+    // More precise matching based on filter value
+    switch(filter) {
+        case 'batch':
+            return type === 'batch';
+        case 'api':
+            return type === 'api' || type === 'online' || type.includes('rest') || type.includes('http');
+        case 'streaming':
+            return type.includes('stream') || type.includes('real-time') || type.includes('realtime');
+        case 'file':
+            return type === 'file' || type.includes('ftp') || type.includes('sftp');
+        case 'queue':
+            return type.includes('queue') || type === 'mq' || type.includes('message');
+        case 'mixed':
+            return type === 'mixed' || type === 'hybrid';
+        default:
+            return type.includes(filter);
+    }
+}
+
+/**
+ * Check if a frequency matches the filter
+ */
+function matchesFrequency(frequency, filter) {
+    if (!frequency) return false;
+    const freq = frequency.toLowerCase();
+    
+    // More precise matching based on filter value
+    switch(filter) {
+        case 'daily':
+            return freq === 'daily' || freq === 'day';
+        case 'weekly':
+            return freq === 'weekly' || freq === 'week';
+        case 'monthly':
+            return freq === 'monthly' || freq === 'month';
+        case 'yearly':
+            return freq === 'yearly' || freq === 'year' || freq === 'annual' || freq === 'annually';
+        case 'demand':
+            return freq.includes('demand') || freq.includes('ad hoc') || freq.includes('adhoc');
+        default:
+            return freq.includes(filter);
+    }
+}
+
+/**
+ * Apply filters to the current data
+ */
+function applyFilters() {
+    if (!currentData) return;
+    
+    let filteredEdges = currentData.edges;
+    
+    // Filter by communication type
+    if (activeFilters.communicationType !== 'all') {
+        filteredEdges = filteredEdges.filter(edge => 
+            matchesCommunicationType(edge.communicationType, activeFilters.communicationType)
+        );
+    }
+    
+    // Filter by frequency
+    if (activeFilters.frequency !== 'all') {
+        filteredEdges = filteredEdges.filter(edge => 
+            matchesFrequency(edge.frequency, activeFilters.frequency)
+        );
+    }
+    
+    // Get nodes that are connected by filtered edges
+    const connectedNodeIds = new Set();
+    filteredEdges.forEach(edge => {
+        connectedNodeIds.add(edge.from);
+        connectedNodeIds.add(edge.to);
+    });
+    
+    const filteredNodes = currentData.nodes.filter(node => 
+        connectedNodeIds.has(node.id)
+    );
+    
+    // Update visualization with filtered data
+    filteredData = { nodes: filteredNodes, edges: filteredEdges };
+    createNetworkVisualization(filteredNodes, filteredEdges);
+    
+    // Update status
+    const filterCount = filteredEdges.length;
+    const totalCount = currentData.edges.length;
+    showStatus(`Showing ${filterCount} of ${totalCount} interfaces`, 'info');
+}
+
+/**
+ * Reset all filters
+ */
+function resetFilters() {
+    document.getElementById('commTypeFilter').value = 'all';
+    document.getElementById('frequencyFilter').value = 'all';
+    activeFilters.communicationType = 'all';
+    activeFilters.frequency = 'all';
+    
+    if (currentData) {
+        filteredData = null;
+        createNetworkVisualization(currentData.nodes, currentData.edges);
+        showStatus(`Showing all ${currentData.edges.length} interfaces`, 'info');
+    }
+}
+
+
 // Load sample data automatically for demo
 document.addEventListener('DOMContentLoaded', function() {
     // Load sample data
@@ -669,73 +885,85 @@ function loadSampleData() {
             "From App Key": "CRM System",
             "To App Key": "Data Warehouse",
             "Data Form": "CSV",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "Batch"
         },
         {
             "From App Key": "CRM System",
             "To App Key": "Email Service",
             "Data Form": "XML",
-            "Frequency": "On Demand"
+            "Frequency": "On Demand",
+            "Communication Type": "API"
         },
         {
             "From App Key": "ERP System",
             "To App Key": "Data Warehouse",
             "Data Form": "CSV",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "Batch"
         },
         {
             "From App Key": "ERP System",
             "To App Key": "Reporting Tool",
             "Data Form": "XML",
-            "Frequency": "Weekly"
+            "Frequency": "Weekly",
+            "Communication Type": "File"
         },
         {
             "From App Key": "Payment Gateway",
             "To App Key": "CRM System",
             "Data Form": "JSON",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "API"
         },
         {
             "From App Key": "Payment Gateway",
             "To App Key": "Audit System",
             "Data Form": "TXT",
-            "Frequency": "Monthly"
+            "Frequency": "Monthly",
+            "Communication Type": "Batch"
         },
         {
             "From App Key": "Mobile App",
             "To App Key": "API Gateway",
             "Data Form": "JSON",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "Streaming"
         },
         {
             "From App Key": "API Gateway",
             "To App Key": "CRM System",
             "Data Form": "JSON",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "API"
         },
         {
             "From App Key": "API Gateway",
             "To App Key": "ERP System",
             "Data Form": "XML",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "API"
         },
         {
             "From App Key": "Reporting Tool",
             "To App Key": "Dashboard",
             "Data Form": "PDF",
-            "Frequency": "Weekly"
+            "Frequency": "Weekly",
+            "Communication Type": "File"
         },
         {
             "From App Key": "Data Warehouse",
             "To App Key": "Analytics Platform",
             "Data Form": "CSV",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "Batch"
         },
         {
             "From App Key": "Analytics Platform",
             "To App Key": "Dashboard",
             "Data Form": "JSON",
-            "Frequency": "Daily"
+            "Frequency": "Daily",
+            "Communication Type": "Streaming"
         }
     ];
     
