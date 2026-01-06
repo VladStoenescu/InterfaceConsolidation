@@ -749,12 +749,19 @@ function loadSampleData() {
 // ==================== VERSION MANAGEMENT FUNCTIONS ====================
 
 /**
+ * Create a unique key for an edge
+ */
+function createEdgeKey(edge) {
+    return `${edge.from}||${edge.to}`;
+}
+
+/**
  * Enable version control buttons
  */
 function enableVersionControls() {
     document.getElementById('saveVersionBtn').disabled = false;
     document.getElementById('versionSelect').disabled = false;
-    document.getElementById('compareBtn').disabled = versions.length >= 2 ? false : true;
+    document.getElementById('compareBtn').disabled = versions.length < 2;
 }
 
 /**
@@ -991,13 +998,13 @@ function calculateVersionDifference(baseData, compareData) {
     // Find added, removed, and modified edges
     const baseEdgeMap = new Map();
     baseData.edges.forEach(edge => {
-        const key = `${edge.from}||${edge.to}`;
+        const key = createEdgeKey(edge);
         baseEdgeMap.set(key, edge);
     });
     
     const compareEdgeMap = new Map();
     compareData.edges.forEach(edge => {
-        const key = `${edge.from}||${edge.to}`;
+        const key = createEdgeKey(edge);
         compareEdgeMap.set(key, edge);
     });
     
@@ -1136,8 +1143,8 @@ function visualizeWithComparison(baseData, diff) {
     
     // Add new edges from comparison
     diff.addedEdges.forEach(edge => {
-        const key = `${edge.from}||${edge.to}`;
-        if (!allEdges.find(e => `${e.from}||${e.to}` === key)) {
+        const key = createEdgeKey(edge);
+        if (!allEdges.find(e => createEdgeKey(e) === key)) {
             allEdges.push(edge);
         }
     });
@@ -1173,7 +1180,11 @@ function applyComparisonHighlighting(diff) {
         }
     });
     
-    // Highlight edges (requires matching by index since we don't have unique IDs on paths)
+    // Create Sets for O(1) lookup of added/removed edges
+    const addedEdgeKeys = new Set(diff.addedEdges.map(e => createEdgeKey(e)));
+    const removedEdgeKeys = new Set(diff.removedEdges.map(e => createEdgeKey(e)));
+    
+    // Highlight edges
     const paths = svg.querySelectorAll('path[d]');
     let pathIndex = 0;
     
@@ -1183,17 +1194,15 @@ function applyComparisonHighlighting(diff) {
             if (pathIndex >= paths.length) return;
             
             const path = paths[pathIndex];
-            const edgeKey = `${edge.from}||${edge.to}`;
+            const edgeKey = createEdgeKey(edge);
             
             // Check if edge is added
-            const isAdded = diff.addedEdges.some(e => `${e.from}||${e.to}` === edgeKey);
-            if (isAdded) {
+            if (addedEdgeKeys.has(edgeKey)) {
                 path.classList.add('edge-added');
             }
             
             // Check if edge is removed
-            const isRemoved = diff.removedEdges.some(e => `${e.from}||${e.to}` === edgeKey);
-            if (isRemoved) {
+            if (removedEdgeKeys.has(edgeKey)) {
                 path.classList.add('edge-removed');
             }
             
