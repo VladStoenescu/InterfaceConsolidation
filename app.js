@@ -1181,6 +1181,8 @@ function applyComparisonHighlighting(diff) {
     });
     
     // Create Sets for O(1) lookup of added/removed edges
+    // This optimization replaces O(n) array.some() operations with O(1) Set.has() lookups,
+    // improving performance when highlighting edges in large diagrams
     const addedEdgeKeys = new Set(diff.addedEdges.map(e => createEdgeKey(e)));
     const removedEdgeKeys = new Set(diff.removedEdges.map(e => createEdgeKey(e)));
     
