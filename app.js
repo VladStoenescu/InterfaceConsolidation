@@ -27,6 +27,22 @@ const NODE_PADDING = 10; // Padding inside node boxes
 const NODE_HEIGHT = 40; // Height of node boxes
 
 /**
+ * Show loading spinner
+ */
+function showLoading() {
+    document.getElementById('loadingSpinner').classList.add('active');
+    document.getElementById('spinnerBackdrop').classList.add('active');
+}
+
+/**
+ * Hide loading spinner
+ */
+function hideLoading() {
+    document.getElementById('loadingSpinner').classList.remove('active');
+    document.getElementById('spinnerBackdrop').classList.remove('active');
+}
+
+/**
  * Handle file upload and process Excel file
  */
 function handleFileUpload() {
@@ -38,6 +54,7 @@ function handleFileUpload() {
         return;
     }
     
+    showLoading();
     showStatus('Processing file...', 'info');
     
     const reader = new FileReader();
@@ -55,20 +72,24 @@ function handleFileUpload() {
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
             
             if (jsonData.length === 0) {
+                hideLoading();
                 showStatus('No data found in the Excel file', 'error');
                 return;
             }
             
             // Process and visualize the data
             processAndVisualize(jsonData);
+            hideLoading();
             
         } catch (error) {
+            hideLoading();
             showStatus('Error processing file: ' + error.message, 'error');
             console.error(error);
         }
     };
     
     reader.onerror = function() {
+        hideLoading();
         showStatus('Error reading file', 'error');
     };
     
@@ -91,6 +112,9 @@ function processAndVisualize(data) {
         createNetworkVisualization(nodes, edges);
         showStatus(`Successfully loaded ${edges.length} interfaces between ${nodes.length} systems`, 'success');
         
+        // Update network stats
+        updateNetworkStats(nodes, edges);
+        
         // Enable version controls
         enableVersionControls();
         
@@ -102,6 +126,27 @@ function processAndVisualize(data) {
         showStatus('Error creating visualization: ' + error.message, 'error');
         console.error(error);
     }
+}
+
+/**
+ * Update network statistics display
+ */
+function updateNetworkStats(nodes, edges) {
+    // Count unique communication types
+    const commTypes = new Set();
+    edges.forEach(edge => {
+        if (edge.communicationType && edge.communicationType.toLowerCase() !== 'unknown') {
+            commTypes.add(edge.communicationType);
+        }
+    });
+    
+    // Update stats
+    document.getElementById('statSystems').textContent = nodes.length;
+    document.getElementById('statInterfaces').textContent = edges.length;
+    document.getElementById('statTypes').textContent = commTypes.size;
+    
+    // Show stats section
+    document.getElementById('networkStats').style.display = 'flex';
 }
 
 /**
@@ -944,7 +989,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load saved versions from localStorage
     loadVersionsFromStorage();
     updateVersionDropdowns();
+    
+    // Load theme preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    }
 });
+
+/**
+ * Toggle between light and dark theme
+ */
+function toggleTheme() {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
 
 /**
  * Load sample data for demonstration

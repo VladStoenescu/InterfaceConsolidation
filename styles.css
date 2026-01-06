@@ -18,6 +18,65 @@
     --glow-purple: rgba(168, 85, 247, 0.4);
 }
 
+/* Light theme */
+body.light-theme {
+    --dark-bg: #f0f4f8;
+    --dark-card: #ffffff;
+    --text-primary: #1a202c;
+    --text-secondary: rgba(26, 32, 44, 0.7);
+    --text-muted: rgba(26, 32, 44, 0.5);
+}
+
+body.light-theme::before {
+    background: 
+        linear-gradient(90deg, rgba(102, 126, 234, 0.05) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(102, 126, 234, 0.05) 1px, transparent 1px);
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(22, 27, 51, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: var(--accent-blue);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+}
+
+.theme-toggle:hover {
+    transform: rotate(180deg) scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+    border-color: var(--accent-blue);
+}
+
+.theme-toggle svg {
+    transition: all 0.3s ease;
+}
+
+body.light-theme .theme-toggle {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(102, 126, 234, 0.3);
+    color: #667eea;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+body.light-theme .theme-toggle:hover {
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    border-color: #667eea;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     background: var(--dark-bg);
@@ -78,6 +137,40 @@ body::before {
     border-radius: 24px 24px 0 0;
 }
 
+.header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 20px;
+    color: var(--accent-blue);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    animation: fadeInElement 0.8s ease;
+}
+
+.badge-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent-blue);
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
+    }
+}
+
 h1 {
     color: var(--text-primary);
     text-align: center;
@@ -90,6 +183,7 @@ h1 {
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+    animation: fadeInElement 1s ease;
 }
 
 .description {
@@ -801,8 +895,271 @@ path[d] {
     transition: opacity 0.3s ease;
 }
 
-path[d]:hover {
-    opacity: 1 !important;
-    filter: drop-shadow(0 0 5px currentColor);
+body.light-theme .container {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 
+        0 0 0 1px rgba(102, 126, 234, 0.1),
+        0 20px 60px rgba(0, 0, 0, 0.15),
+        0 0 100px rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+body.light-theme .network-container {
+    background: rgba(240, 244, 248, 0.8);
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+body.light-theme .legend,
+body.light-theme .version-section,
+body.light-theme .filter-section,
+body.light-theme .upload-section {
+    background: rgba(102, 126, 234, 0.05);
+    border-color: rgba(102, 126, 234, 0.15);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+    display: none;
+}
+
+.loading-spinner.active {
+    display: block;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(0, 212, 255, 0.2);
+    border-top: 4px solid var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 14, 39, 0.8);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 1999;
+    display: none;
+}
+
+.spinner-backdrop.active {
+    display: block;
+}
+
+/* Tooltip styling */
+.tooltip {
+    position: absolute;
+    background: rgba(22, 27, 51, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 1000;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    max-width: 300px;
+    line-height: 1.5;
+}
+
+/* Pulse animation for buttons */
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 25px rgba(168, 85, 247, 0.6), 0 0 40px rgba(0, 212, 255, 0.4);
+    }
+}
+
+#uploadBtn.pulsing {
+    animation: pulse 2s infinite;
+}
+
+/* Fade in animation for elements */
+.fade-in {
+    animation: fadeInElement 0.5s ease forwards;
+}
+
+@keyframes fadeInElement {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Smooth transitions for all interactive elements */
+button, select, input {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+    .container {
+        padding: 24px;
+        border-radius: 16px;
+    }
+    
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    .description {
+        font-size: 0.95rem;
+    }
+    
+    .upload-section,
+    .version-section,
+    .filter-section {
+        padding: 20px;
+    }
+    
+    .filter-controls,
+    .version-controls {
+        gap: 12px;
+    }
+    
+    .theme-toggle {
+        width: 42px;
+        height: 42px;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .network-container {
+        height: 500px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        padding: 16px;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .header-badge {
+        font-size: 0.65rem;
+        padding: 6px 12px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .theme-toggle,
+    .upload-section,
+    .version-section,
+    .filter-section {
+        display: none;
+    }
+    
+    .container {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .network-container {
+        border: 1px solid #ddd;
+    }
+}
+
+/* Network Stats Footer */
+.network-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    margin-top: 24px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, 
+        transparent, 
+        rgba(0, 212, 255, 0.3), 
+        transparent);
+}
+
+body.light-theme .network-stats {
+    background: rgba(102, 126, 234, 0.05);
+    border-color: rgba(102, 126, 234, 0.15);
 }
 
