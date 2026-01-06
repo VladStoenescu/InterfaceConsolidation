@@ -220,6 +220,34 @@ function getEdgeStyle(frequency) {
 }
 
 /**
+ * Calculate curve control points for quadratic bezier curve between two positions
+ */
+function calculateCurveControlPoint(fromPos, toPos) {
+    const dx = toPos.x - fromPos.x;
+    const dy = toPos.y - fromPos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Curve offset perpendicular to the line (creates curved paths)
+    // Use a more pronounced curve for better visual separation
+    const curveOffset = Math.min(distance * 0.25, 80);
+    const midX = (fromPos.x + toPos.x) / 2;
+    const midY = (fromPos.y + toPos.y) / 2;
+    
+    // Perpendicular offset
+    const perpX = -dy / distance * curveOffset;
+    const perpY = dx / distance * curveOffset;
+    
+    return {
+        controlX: midX + perpX,
+        controlY: midY + perpY,
+        midX,
+        midY,
+        perpX,
+        perpY
+    };
+}
+
+/**
  * Create network visualization using SVG
  */
 function createNetworkVisualization(nodes, edges) {
@@ -254,23 +282,8 @@ function createNetworkVisualization(nodes, edges) {
         const markerId = `arrow-${edge.from}-${edge.to}-${Math.random().toString(36).substr(2, 9)}`;
         createArrowMarker(svg, markerId, style.color);
         
-        // Calculate curve control point for quadratic bezier
-        const dx = toPos.x - fromPos.x;
-        const dy = toPos.y - fromPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Curve offset perpendicular to the line (creates curved paths)
-        // Use a more pronounced curve for better visual separation
-        const curveOffset = Math.min(distance * 0.25, 80);
-        const midX = (fromPos.x + toPos.x) / 2;
-        const midY = (fromPos.y + toPos.y) / 2;
-        
-        // Perpendicular offset
-        const perpX = -dy / distance * curveOffset;
-        const perpY = dx / distance * curveOffset;
-        
-        const controlX = midX + perpX;
-        const controlY = midY + perpY;
+        // Calculate curve control points
+        const { controlX, controlY, midX, midY, perpX, perpY } = calculateCurveControlPoint(fromPos, toPos);
         
         // Create curved path instead of straight line
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -587,22 +600,8 @@ function updateEdges() {
         
         const path = paths[pathIndex];
         
-        // Calculate curve control point for quadratic bezier
-        const dx = toPos.x - fromPos.x;
-        const dy = toPos.y - fromPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Curve offset perpendicular to the line
-        const curveOffset = Math.min(distance * 0.25, 80);
-        const midX = (fromPos.x + toPos.x) / 2;
-        const midY = (fromPos.y + toPos.y) / 2;
-        
-        // Perpendicular offset
-        const perpX = -dy / distance * curveOffset;
-        const perpY = dx / distance * curveOffset;
-        
-        const controlX = midX + perpX;
-        const controlY = midY + perpY;
+        // Calculate curve control points
+        const { controlX, controlY } = calculateCurveControlPoint(fromPos, toPos);
         
         const pathData = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
         path.setAttribute('d', pathData);
