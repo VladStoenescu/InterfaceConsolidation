@@ -8,6 +8,15 @@ let zoom = 1;
 let panX = 0;
 let panY = 0;
 
+// Constants for visual styling
+const CHAR_WIDTH_ESTIMATE = 8; // Estimated pixels per character for font size 14
+const TEXT_BG_PADDING = 2; // Padding around text labels
+const TEXT_MEASUREMENT_DELAY = 100; // Delay for getBBox to work correctly
+const DEFAULT_TEXT_WIDTH = 40; // Default width when getBBox unavailable
+const DEFAULT_TEXT_HEIGHT = 15; // Default height when getBBox unavailable
+const NODE_PADDING = 10; // Padding inside node boxes
+const NODE_HEIGHT = 40; // Height of node boxes
+
 /**
  * Handle file upload and process Excel file
  */
@@ -278,14 +287,16 @@ function createNetworkVisualization(nodes, edges) {
         text.textContent = edge.label;
         
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        const bbox = text.getBBox ? text.getBBox() : { x: midX - 20, y: midY - 15, width: 40, height: 15 };
+        // Use default dimensions initially (getBBox needs the element to be in DOM)
+        const bbox = { x: midX - DEFAULT_TEXT_WIDTH/2, y: midY - DEFAULT_TEXT_HEIGHT, width: DEFAULT_TEXT_WIDTH, height: DEFAULT_TEXT_HEIGHT };
+        // Update with actual dimensions after a delay to allow DOM to render
         setTimeout(() => {
             const bbox = text.getBBox();
-            textBg.setAttribute('x', bbox.x - 2);
-            textBg.setAttribute('y', bbox.y - 2);
-            textBg.setAttribute('width', bbox.width + 4);
-            textBg.setAttribute('height', bbox.height + 4);
-        }, 100);
+            textBg.setAttribute('x', bbox.x - TEXT_BG_PADDING);
+            textBg.setAttribute('y', bbox.y - TEXT_BG_PADDING);
+            textBg.setAttribute('width', bbox.width + TEXT_BG_PADDING * 2);
+            textBg.setAttribute('height', bbox.height + TEXT_BG_PADDING * 2);
+        }, TEXT_MEASUREMENT_DELAY);
         
         textBg.setAttribute('fill', 'white');
         textBg.setAttribute('opacity', '0.8');
@@ -308,11 +319,11 @@ function createNetworkVisualization(nodes, edges) {
         
         // Create rectangle
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        const textWidth = node.label.length * 8;
-        rect.setAttribute('x', pos.x - textWidth / 2 - 10);
-        rect.setAttribute('y', pos.y - 20);
-        rect.setAttribute('width', textWidth + 20);
-        rect.setAttribute('height', 40);
+        const textWidth = node.label.length * CHAR_WIDTH_ESTIMATE;
+        rect.setAttribute('x', pos.x - textWidth / 2 - NODE_PADDING);
+        rect.setAttribute('y', pos.y - NODE_HEIGHT / 2);
+        rect.setAttribute('width', textWidth + NODE_PADDING * 2);
+        rect.setAttribute('height', NODE_HEIGHT);
         rect.setAttribute('fill', '#97C2FC');
         rect.setAttribute('stroke', '#2B7CE9');
         rect.setAttribute('stroke-width', '2');
@@ -427,10 +438,10 @@ function drag(e) {
     
     const rect2 = draggedNode.querySelector('rect');
     const text = draggedNode.querySelector('text');
-    const textWidth = text.textContent.length * 8;
+    const textWidth = text.textContent.length * CHAR_WIDTH_ESTIMATE;
     
-    rect2.setAttribute('x', x - textWidth / 2 - 10);
-    rect2.setAttribute('y', y - 20);
+    rect2.setAttribute('x', x - textWidth / 2 - NODE_PADDING);
+    rect2.setAttribute('y', y - NODE_HEIGHT / 2);
     text.setAttribute('x', x);
     text.setAttribute('y', y + 5);
     

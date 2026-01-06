@@ -51,7 +51,7 @@ The Excel file should contain the following columns:
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Excel Parsing**: SheetJS (xlsx library)
-- **Visualization**: Vis.js Network library
+- **Visualization**: Custom SVG-based network diagram
 - **No Backend Required**: Runs entirely in the browser
 
 ## Browser Compatibility
