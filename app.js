@@ -27,17 +27,22 @@ function handleFileUpload() {
     reader.onload = function(e) {
         try {
             const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
             
-            // Parse Excel file using a simple approach
-            const workbook = parseExcelFile(data);
+            // Get the first sheet
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
             
-            if (!workbook || workbook.length === 0) {
+            // Convert to JSON
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            if (jsonData.length === 0) {
                 showStatus('No data found in the Excel file', 'error');
                 return;
             }
             
             // Process and visualize the data
-            processAndVisualize(workbook);
+            processAndVisualize(jsonData);
             
         } catch (error) {
             showStatus('Error processing file: ' + error.message, 'error');
@@ -50,55 +55,6 @@ function handleFileUpload() {
     };
     
     reader.readAsArrayBuffer(file);
-}
-
-/**
- * Simple Excel parser using XML parsing
- */
-function parseExcelFile(data) {
-    try {
-        // Convert to string to search for XML content
-        const text = new TextDecoder().decode(data);
-        
-        // For .xlsx files (which are ZIP files with XML inside)
-        // We'll use a simpler approach: try to parse as CSV or TSV format
-        // This is a simplified implementation
-        
-        // For now, let's show a message that the user should use CSV instead
-        showStatus('For this demo, please use the sample file or convert your Excel to CSV format', 'error');
-        return null;
-        
-    } catch (error) {
-        console.error('Parse error:', error);
-        return null;
-    }
-}
-
-/**
- * Alternative: Handle CSV file upload
- */
-function handleCSVUpload(fileContent) {
-    const lines = fileContent.split('\n').filter(line => line.trim());
-    
-    if (lines.length < 2) {
-        return null;
-    }
-    
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-        const row = {};
-        
-        headers.forEach((header, index) => {
-            row[header] = values[index] || '';
-        });
-        
-        data.push(row);
-    }
-    
-    return data;
 }
 
 /**

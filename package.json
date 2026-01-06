@@ -1,0 +1,18 @@
+{
+  "name": "interfaceconsolidation",
+  "version": "1.0.0",
+  "description": "A simple web application to consolidate an Excel file into a visual representation of interfaces between systems.",
+  "main": "app.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
