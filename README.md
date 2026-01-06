@@ -8,7 +8,15 @@ A simple web application to consolidate an Excel file into a visual representati
 - **Visual Network Diagram**: Automatically generates an interactive network diagram showing system interfaces
 - **Force-Directed Layout**: Uses a physics-based algorithm to distribute nodes naturally and reduce clutter
 - **Curved Edges**: Connections use curved paths to minimize visual overlap and improve readability
-- **Frequency-Based Differentiation**: Lines are styled differently based on communication frequency:
+- **Communication Type Differentiation**: Lines are styled based on the type of communication:
+  - **Batch**: Thick solid red line
+  - **API/Online**: Dashed teal line
+  - **Streaming/Real-time**: Dotted light teal line
+  - **Mixed/Hybrid**: Complex dashed coral line
+  - **File Transfer**: Dotted purple line
+  - **Message Queue**: Multi-dashed pink line
+  - **Unknown**: Thin gray line (default)
+- **Frequency-Based Differentiation** (fallback): When Communication Type is not specified, lines are styled based on frequency:
   - **Daily**: Solid blue line (thick)
   - **Weekly**: Dashed green line
   - **Monthly**: Dotted orange line
@@ -25,8 +33,9 @@ The Excel file should contain the following columns:
 - **To App Key**: The target system (required)
 - **Data Form**: The type of data being exchanged (e.g., CSV, PDF, TXT, XML, Other)
 - **Frequency**: How often the data exchange occurs (e.g., Daily, Weekly, Monthly, Yearly, On Demand)
+- **Communication Type**: The method of communication (optional, e.g., Batch, API, Online, Streaming, Real-time, Mixed, Hybrid, File, FTP, SFTP, Queue, MQ, Message)
 
-> **Note**: Column names are case-insensitive. The application will automatically detect variations like "from app key", "FROM APP KEY", etc.
+> **Note**: Column names are case-insensitive. The application will automatically detect variations like "from app key", "FROM APP KEY", "Communication Type", "Comm Type", etc.
 
 ## How to Use
 
@@ -42,12 +51,12 @@ The Excel file should contain the following columns:
 
 ## Example Excel File Structure
 
-| From App Key | To App Key | Data Form | Frequency |
-|--------------|------------|-----------|-----------|
-| System A     | System B   | CSV       | Daily     |
-| System A     | System C   | XML       | Weekly    |
-| System B     | System C   | PDF       | Monthly   |
-| System D     | System A   | TXT       | On Demand |
+| From App Key | To App Key | Data Form | Frequency | Communication Type |
+|--------------|------------|-----------|-----------|-------------------|
+| System A     | System B   | CSV       | Daily     | Batch             |
+| System A     | System C   | XML       | Weekly    | API               |
+| System B     | System C   | PDF       | Monthly   | File              |
+| System D     | System A   | TXT       | On Demand | Streaming         |
 
 ## Technical Details
 

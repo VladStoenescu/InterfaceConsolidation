@@ -30,7 +30,46 @@
         <div id="legend" class="legend" style="display: none;">
             <h3>Legend</h3>
             <div class="legend-section">
-                <h4>Frequency</h4>
+                <h4>Communication Type</h4>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FF6B6B" stroke-width="4"/>
+                    </svg>
+                    <span>Batch</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#4ECDC4" stroke-width="3" stroke-dasharray="8,4"/>
+                    </svg>
+                    <span>API/Online</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#95E1D3" stroke-width="3" stroke-dasharray="3,3"/>
+                    </svg>
+                    <span>Streaming/Real-time</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#F38181" stroke-width="3" stroke-dasharray="10,5,3,5"/>
+                    </svg>
+                    <span>Mixed/Hybrid</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#AA96DA" stroke-width="3" stroke-dasharray="5,5"/>
+                    </svg>
+                    <span>File Transfer</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FCBAD3" stroke-width="3" stroke-dasharray="12,3,3,3"/>
+                    </svg>
+                    <span>Message Queue</span>
+                </div>
+            </div>
+            <div class="legend-section">
+                <h4>Frequency (fallback if no Communication Type)</h4>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#2196F3" stroke-width="3"/>
