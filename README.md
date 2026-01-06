@@ -68,3 +68,9 @@ Simply open `index.html` in your browser. No build process or server required.
 ## Privacy
 
 All data processing happens locally in your browser. No data is sent to any server.
+
+## Security
+
+Please see [SECURITY.md](SECURITY.md) for information about dependencies and security considerations.
+
+For production use, only upload Excel files from trusted sources.
