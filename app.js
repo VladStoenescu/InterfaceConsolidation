@@ -1771,6 +1771,10 @@ function createSVGBarChart(canvasId, data, colors) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return null;
     
+    // Constants for label truncation
+    const MAX_LABEL_LENGTH = 12;
+    const TRUNCATED_LABEL_LENGTH = 10;
+    
     // Clear existing content
     canvas.innerHTML = '';
     
@@ -1821,7 +1825,7 @@ function createSVGBarChart(canvasId, data, colors) {
         labelText.setAttribute('fill', 'rgba(255, 255, 255, 0.7)');
         labelText.setAttribute('font-size', '10');
         // Truncate long labels
-        const truncated = label.length > 12 ? label.substring(0, 10) + '...' : label;
+        const truncated = label.length > MAX_LABEL_LENGTH ? label.substring(0, TRUNCATED_LABEL_LENGTH) + '...' : label;
         labelText.textContent = truncated;
         
         // Add title for full label
@@ -1963,10 +1967,14 @@ function createRiskImpactChart() {
     });
     
     // Create scatter plot data (connections vs risk)
+    // Risk is calculated deterministically based on connection count and system name hash
     const scatterData = nodes.map(node => {
         const connections = connectionCount[node.id] || 0;
-        // Risk = connections * random factor (simulating failure probability)
-        const risk = connections * (0.5 + Math.random() * 0.5);
+        // Calculate a deterministic risk factor based on system name
+        // This provides consistent visualization while simulating varying risk levels
+        const nameHash = node.label.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const riskFactor = 0.5 + ((nameHash % 50) / 100); // Range: 0.5 to 1.0
+        const risk = connections * riskFactor;
         return {
             x: connections,
             y: risk,

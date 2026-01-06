@@ -1585,7 +1585,7 @@ body.light-theme .network-stats {
     
     .nav-btn {
         flex: 1;
-        min-width: 0;
+        min-width: 120px;
         justify-content: center;
     }
 }
