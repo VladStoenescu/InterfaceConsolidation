@@ -6,9 +6,6 @@
     <title>Interface Consolidation</title>
     <link rel="stylesheet" href="styles.css">
     <script src="lib/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <!-- Theme Toggle -->
@@ -320,19 +317,19 @@
             <div class="charts-grid">
                 <div class="chart-container">
                     <h3>Interfaces by Communication Type</h3>
-                    <canvas id="commTypeChart"></canvas>
+                    <div id="commTypeChart"></div>
                 </div>
                 <div class="chart-container">
                     <h3>Top 5 Most Connected Systems</h3>
-                    <canvas id="topSystemsChart"></canvas>
+                    <div id="topSystemsChart"></div>
                 </div>
                 <div class="chart-container">
                     <h3>Interfaces by Frequency</h3>
-                    <canvas id="frequencyChart"></canvas>
+                    <div id="frequencyChart"></div>
                 </div>
                 <div class="chart-container">
                     <h3>Data Validation Stats</h3>
-                    <canvas id="validationChart"></canvas>
+                    <div id="validationChart"></div>
                 </div>
             </div>
         </div>
@@ -404,7 +401,7 @@
                 <h3>Risk Impact Analysis</h3>
                 <p class="section-description">Potential impact of system failures on dependencies</p>
                 <div class="risk-matrix-container">
-                    <canvas id="riskImpactChart"></canvas>
+                    <div id="riskImpactChart"></div>
                 </div>
             </div>
 

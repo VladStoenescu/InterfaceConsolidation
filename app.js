@@ -1661,51 +1661,39 @@ function calculateDashboardMetrics() {
 }
 
 /**
- * Create dashboard charts using Chart.js
+ * Create dashboard charts using custom SVG visualizations
  */
 function createDashboardCharts() {
     const { edges } = currentData;
     
-    // Destroy existing charts
-    Object.values(dashboardCharts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
+    // Clear existing charts
     dashboardCharts = {};
     
     // Chart 1: Interfaces by Communication Type
     const commTypeData = getCommTypeDistribution(edges);
-    dashboardCharts.commType = createPieChart('commTypeChart', 
-        'Communication Types', 
-        Object.keys(commTypeData), 
-        Object.values(commTypeData),
-        ['#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#999999']
-    );
+    createSVGBarChart('commTypeChart', commTypeData, 
+        ['#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#999999']);
     
     // Chart 2: Top 5 Most Connected Systems
     const topSystems = getTopConnectedSystems(5);
-    dashboardCharts.topSystems = createBarChart('topSystemsChart',
-        'Top Connected Systems',
-        topSystems.labels,
-        topSystems.data
-    );
+    const topSystemsData = {};
+    topSystems.labels.forEach((label, i) => {
+        topSystemsData[label] = topSystems.data[i];
+    });
+    createSVGBarChart('topSystemsChart', topSystemsData, ['#00d4ff']);
     
     // Chart 3: Interfaces by Frequency
     const frequencyData = getFrequencyDistribution(edges);
-    dashboardCharts.frequency = createPieChart('frequencyChart',
-        'Frequency Distribution',
-        Object.keys(frequencyData),
-        Object.values(frequencyData),
-        ['#2196F3', '#4CAF50', '#FF9800', '#9E9E9E', '#E91E63', '#607D8B']
-    );
+    createSVGBarChart('frequencyChart', frequencyData,
+        ['#2196F3', '#4CAF50', '#FF9800', '#9E9E9E', '#E91E63', '#607D8B']);
     
     // Chart 4: Data Validation Stats
     const validationData = getValidationStats(edges);
-    dashboardCharts.validation = createDoughnutChart('validationChart',
-        'Data Quality',
-        ['Complete', 'Incomplete'],
-        [validationData.complete, validationData.incomplete],
-        ['#10b981', '#ef4444']
-    );
+    const validationChartData = {
+        'Complete': validationData.complete,
+        'Incomplete': validationData.incomplete
+    };
+    createSVGBarChart('validationChart', validationChartData, ['#10b981', '#ef4444']);
 }
 
 /**
@@ -1777,156 +1765,109 @@ function getValidationStats(edges) {
 }
 
 /**
- * Create a pie chart
+ * Create a simple SVG bar chart
+ */
+function createSVGBarChart(canvasId, data, colors) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    
+    // Clear existing content
+    canvas.innerHTML = '';
+    
+    // Create SVG element
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '300');
+    svg.setAttribute('viewBox', '0 0 400 300');
+    
+    const entries = Object.entries(data);
+    const maxValue = Math.max(...entries.map(e => e[1]));
+    const barWidth = 300 / entries.length;
+    const chartHeight = 220;
+    const chartTop = 20;
+    
+    entries.forEach(([label, value], index) => {
+        const barHeight = maxValue > 0 ? (value / maxValue) * chartHeight : 0;
+        const x = index * barWidth + 20;
+        const y = chartTop + chartHeight - barHeight;
+        const color = colors[index % colors.length];
+        
+        // Create bar
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', Math.max(barWidth - 10, 20));
+        rect.setAttribute('height', barHeight);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('rx', '4');
+        svg.appendChild(rect);
+        
+        // Add value label on top of bar
+        const valueText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        valueText.setAttribute('x', x + (barWidth - 10) / 2);
+        valueText.setAttribute('y', y - 5);
+        valueText.setAttribute('text-anchor', 'middle');
+        valueText.setAttribute('fill', 'rgba(255, 255, 255, 0.9)');
+        valueText.setAttribute('font-size', '12');
+        valueText.setAttribute('font-weight', 'bold');
+        valueText.textContent = value;
+        svg.appendChild(valueText);
+        
+        // Add label below bar
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', x + (barWidth - 10) / 2);
+        labelText.setAttribute('y', chartTop + chartHeight + 20);
+        labelText.setAttribute('text-anchor', 'middle');
+        labelText.setAttribute('fill', 'rgba(255, 255, 255, 0.7)');
+        labelText.setAttribute('font-size', '10');
+        // Truncate long labels
+        const truncated = label.length > 12 ? label.substring(0, 10) + '...' : label;
+        labelText.textContent = truncated;
+        
+        // Add title for full label
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${label}: ${value}`;
+        labelText.appendChild(title);
+        
+        svg.appendChild(labelText);
+    });
+    
+    canvas.appendChild(svg);
+    return svg;
+}
+
+/**
+ * Create a pie chart (not used, keeping for compatibility)
  */
 function createPieChart(canvasId, title, labels, data, colors) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return null;
-    
-    return new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        padding: 15,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(22, 27, 51, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(0, 212, 255, 0.3)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            }
-        }
+    // Use bar chart instead
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
     });
+    return createSVGBarChart(canvasId, chartData, colors);
 }
 
 /**
- * Create a bar chart
+ * Create a bar chart (not used, keeping for compatibility)
  */
 function createBarChart(canvasId, title, labels, data) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return null;
-    
-    return new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Connections',
-                data: data,
-                backgroundColor: 'rgba(0, 212, 255, 0.6)',
-                borderColor: 'rgba(0, 212, 255, 1)',
-                borderWidth: 2,
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(22, 27, 51, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(0, 212, 255, 0.3)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        stepSize: 1
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)'
-                    },
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
     });
+    return createSVGBarChart(canvasId, chartData, ['#00d4ff']);
 }
 
 /**
- * Create a doughnut chart
+ * Create a doughnut chart (not used, keeping for compatibility)
  */
 function createDoughnutChart(canvasId, title, labels, data, colors) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return null;
-    
-    return new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        padding: 15,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(22, 27, 51, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(0, 212, 255, 0.3)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8
-                }
-            }
-        }
+    const chartData = {};
+    labels.forEach((label, i) => {
+        chartData[label] = data[i];
     });
+    return createSVGBarChart(canvasId, chartData, colors);
 }
 
 // ==================== EXECUTIVE VIEW FUNCTIONS ====================
@@ -2033,92 +1974,90 @@ function createRiskImpactChart() {
         };
     });
     
-    const ctx = document.getElementById('riskImpactChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('riskImpactChart');
+    if (!canvas) return;
     
-    // Destroy existing chart if any
-    if (dashboardCharts.riskImpact) {
-        dashboardCharts.riskImpact.destroy();
-    }
+    // Clear existing content
+    canvas.innerHTML = '';
     
-    dashboardCharts.riskImpact = new Chart(ctx, {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: 'System Risk Impact',
-                data: scatterData,
-                backgroundColor: scatterData.map(d => {
-                    if (d.y > 8) return 'rgba(239, 68, 68, 0.7)';
-                    if (d.y > 4) return 'rgba(251, 191, 36, 0.7)';
-                    return 'rgba(16, 185, 129, 0.7)';
-                }),
-                borderColor: scatterData.map(d => {
-                    if (d.y > 8) return '#ef4444';
-                    if (d.y > 4) return '#fbbf24';
-                    return '#10b981';
-                }),
-                borderWidth: 2,
-                pointRadius: 8,
-                pointHoverRadius: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(22, 27, 51, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(0, 212, 255, 0.3)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8,
-                    callbacks: {
-                        label: function(context) {
-                            const point = scatterData[context.dataIndex];
-                            return [
-                                `System: ${point.label}`,
-                                `Connections: ${point.x}`,
-                                `Risk Score: ${point.y.toFixed(1)}`
-                            ];
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Number of Connections',
-                        color: 'rgba(255, 255, 255, 0.8)'
-                    },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)'
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Risk Impact Score',
-                        color: 'rgba(255, 255, 255, 0.8)'
-                    },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.7)'
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    }
-                }
-            }
-        }
+    // Create SVG scatter plot
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '400');
+    svg.setAttribute('viewBox', '0 0 500 400');
+    
+    const maxX = Math.max(...scatterData.map(d => d.x)) || 10;
+    const maxY = Math.max(...scatterData.map(d => d.y)) || 10;
+    const chartWidth = 400;
+    const chartHeight = 320;
+    const marginLeft = 60;
+    const marginBottom = 60;
+    
+    // Draw axes
+    const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    xAxis.setAttribute('x1', marginLeft);
+    xAxis.setAttribute('y1', chartHeight);
+    xAxis.setAttribute('x2', marginLeft + chartWidth);
+    xAxis.setAttribute('y2', chartHeight);
+    xAxis.setAttribute('stroke', 'rgba(255, 255, 255, 0.3)');
+    xAxis.setAttribute('stroke-width', '2');
+    svg.appendChild(xAxis);
+    
+    const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    yAxis.setAttribute('x1', marginLeft);
+    yAxis.setAttribute('y1', 20);
+    yAxis.setAttribute('x2', marginLeft);
+    yAxis.setAttribute('y2', chartHeight);
+    yAxis.setAttribute('stroke', 'rgba(255, 255, 255, 0.3)');
+    yAxis.setAttribute('stroke-width', '2');
+    svg.appendChild(yAxis);
+    
+    // Add axis labels
+    const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    xLabel.setAttribute('x', marginLeft + chartWidth / 2);
+    xLabel.setAttribute('y', chartHeight + 40);
+    xLabel.setAttribute('text-anchor', 'middle');
+    xLabel.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+    xLabel.setAttribute('font-size', '12');
+    xLabel.textContent = 'Number of Connections';
+    svg.appendChild(xLabel);
+    
+    const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    yLabel.setAttribute('x', 15);
+    yLabel.setAttribute('y', chartHeight / 2);
+    yLabel.setAttribute('text-anchor', 'middle');
+    yLabel.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+    yLabel.setAttribute('font-size', '12');
+    yLabel.setAttribute('transform', `rotate(-90, 15, ${chartHeight / 2})`);
+    yLabel.textContent = 'Risk Impact Score';
+    svg.appendChild(yLabel);
+    
+    // Plot points
+    scatterData.forEach(point => {
+        const x = marginLeft + (point.x / maxX) * chartWidth;
+        const y = chartHeight - (point.y / maxY) * (chartHeight - 20);
+        
+        let color;
+        if (point.y > 8) color = '#ef4444';
+        else if (point.y > 4) color = '#fbbf24';
+        else color = '#10b981';
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', '6');
+        circle.setAttribute('fill', color);
+        circle.setAttribute('stroke', 'rgba(255, 255, 255, 0.5)');
+        circle.setAttribute('stroke-width', '1');
+        
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${point.label}\nConnections: ${point.x}\nRisk: ${point.y.toFixed(1)}`;
+        circle.appendChild(title);
+        
+        svg.appendChild(circle);
     });
+    
+    canvas.appendChild(svg);
 }
 
 /**
@@ -2184,125 +2123,136 @@ function generateRecommendations() {
 }
 
 /**
- * Export executive report as PDF
+ * Export executive report as PDF (using browser print)
  */
 async function exportExecutiveReport() {
-    showLoading();
+    // Create a printable version of the executive view
+    const printContent = createPrintableReport();
     
-    try {
-        // Use jsPDF to create PDF
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        let yPos = 20;
-        
-        // Add title
-        pdf.setFontSize(20);
-        pdf.setTextColor(0, 212, 255);
-        pdf.text('Executive Management Report', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 10;
-        
-        // Add subtitle
-        pdf.setFontSize(12);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text('Interface Consolidation Analysis', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 15;
-        
-        // Add date
-        pdf.setFontSize(10);
-        pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 15;
-        
-        // Add KPIs
-        pdf.setFontSize(14);
-        pdf.setTextColor(0, 0, 0);
-        pdf.text('Key Performance Indicators', 20, yPos);
-        yPos += 10;
-        
-        pdf.setFontSize(10);
-        const criticalSystems = document.getElementById('execCriticalSystems').textContent;
-        const riskScore = document.getElementById('execRiskScore').textContent;
-        const complexity = document.getElementById('execComplexity').textContent;
-        
-        pdf.text(`Critical Systems: ${criticalSystems}`, 20, yPos);
-        yPos += 7;
-        pdf.text(`Risk Score: ${riskScore}`, 20, yPos);
-        yPos += 7;
-        pdf.text(`Integration Complexity: ${complexity}`, 20, yPos);
-        yPos += 15;
-        
-        // Add Critical Path Systems section
-        pdf.setFontSize(14);
-        pdf.text('Critical Path Systems', 20, yPos);
-        yPos += 10;
-        
-        const criticalPathList = document.getElementById('criticalPathList');
-        const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
-        
-        pdf.setFontSize(10);
-        criticalItems.forEach((item, index) => {
-            if (index < 5) { // Limit to top 5 for PDF
-                const name = item.querySelector('.system-name').textContent;
-                const details = item.querySelector('.system-details').textContent;
-                pdf.text(`${index + 1}. ${name} - ${details}`, 25, yPos);
-                yPos += 7;
-            }
-        });
-        
-        yPos += 10;
-        
-        // Add Recommendations
-        if (yPos > pageHeight - 60) {
-            pdf.addPage();
-            yPos = 20;
-        }
-        
-        pdf.setFontSize(14);
-        pdf.text('Strategic Recommendations', 20, yPos);
-        yPos += 10;
-        
-        const recommendationsList = document.getElementById('recommendationsList');
-        const recItems = recommendationsList.querySelectorAll('.recommendation-item');
-        
-        pdf.setFontSize(10);
-        recItems.forEach((item, index) => {
-            const title = item.querySelector('.recommendation-title').textContent;
-            const description = item.querySelector('.recommendation-description').textContent;
-            
-            if (yPos > pageHeight - 40) {
-                pdf.addPage();
-                yPos = 20;
-            }
-            
-            pdf.setFont(undefined, 'bold');
-            pdf.text(`${index + 1}. ${title}`, 20, yPos);
-            yPos += 7;
-            
-            pdf.setFont(undefined, 'normal');
-            const lines = pdf.splitTextToSize(description, pageWidth - 40);
-            lines.forEach(line => {
-                if (yPos > pageHeight - 20) {
-                    pdf.addPage();
-                    yPos = 20;
+    // Open print dialog
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Executive Management Report</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 20px;
+                    color: #000;
+                    background: #fff;
                 }
-                pdf.text(line, 25, yPos);
-                yPos += 5;
-            });
-            yPos += 5;
-        });
+                h1 { color: #00d4ff; text-align: center; }
+                h2 { color: #333; margin-top: 30px; border-bottom: 2px solid #00d4ff; padding-bottom: 5px; }
+                .kpi-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+                .kpi-card {
+                    border: 2px solid #ddd;
+                    padding: 15px;
+                    border-radius: 8px;
+                }
+                .kpi-label { font-weight: bold; color: #666; }
+                .kpi-value { font-size: 24px; color: #00d4ff; margin: 10px 0; }
+                .system-item {
+                    padding: 10px;
+                    margin: 5px 0;
+                    border-left: 4px solid #00d4ff;
+                    background: #f5f5f5;
+                }
+                .recommendation {
+                    padding: 15px;
+                    margin: 10px 0;
+                    border-left: 4px solid #00d4ff;
+                    background: #f9f9f9;
+                }
+                .rec-title { font-weight: bold; margin-bottom: 5px; }
+                @media print {
+                    body { padding: 10mm; }
+                    .kpi-grid { page-break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Trigger print after a short delay to ensure content is loaded
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+    
+    showStatus('Opening print dialog for report export', 'success');
+}
+
+/**
+ * Create printable HTML report
+ */
+function createPrintableReport() {
+    const criticalSystems = document.getElementById('execCriticalSystems').textContent;
+    const riskScore = document.getElementById('execRiskScore').textContent;
+    const complexity = document.getElementById('execComplexity').textContent;
+    
+    let html = `
+        <h1>Executive Management Report</h1>
+        <p style="text-align: center; color: #666;">Interface Consolidation Analysis</p>
+        <p style="text-align: center; color: #999;">Generated: ${new Date().toLocaleDateString()}</p>
         
-        // Save PDF
-        pdf.save('executive-report.pdf');
-        showStatus('Executive report exported successfully', 'success');
+        <h2>Key Performance Indicators</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Critical Systems</div>
+                <div class="kpi-value">${criticalSystems}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Risk Score</div>
+                <div class="kpi-value">${riskScore}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Integration Complexity</div>
+                <div class="kpi-value">${complexity}</div>
+            </div>
+        </div>
         
-    } catch (error) {
-        console.error('Error exporting PDF:', error);
-        showStatus('Error exporting report: ' + error.message, 'error');
-    } finally {
-        hideLoading();
-    }
+        <h2>Critical Path Systems</h2>
+    `;
+    
+    const criticalPathList = document.getElementById('criticalPathList');
+    const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
+    
+    criticalItems.forEach((item, index) => {
+        if (index < 10) {
+            const name = item.querySelector('.system-name').textContent;
+            const details = item.querySelector('.system-details').textContent;
+            html += `<div class="system-item"><strong>${index + 1}. ${name}</strong><br>${details}</div>`;
+        }
+    });
+    
+    html += '<h2>Strategic Recommendations</h2>';
+    
+    const recommendationsList = document.getElementById('recommendationsList');
+    const recItems = recommendationsList.querySelectorAll('.recommendation-item');
+    
+    recItems.forEach((item, index) => {
+        const title = item.querySelector('.recommendation-title').textContent;
+        const description = item.querySelector('.recommendation-description').textContent;
+        html += `
+            <div class="recommendation">
+                <div class="rec-title">${index + 1}. ${title}</div>
+                <div>${description}</div>
+            </div>
+        `;
+    });
+    
+    return html;
 }
 
 
