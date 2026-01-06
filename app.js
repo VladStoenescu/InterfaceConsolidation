@@ -367,7 +367,9 @@ function createNetworkVisualization(nodes, edges) {
         if (!fromPos || !toPos) return;
         
         // Use communication type for styling if available, otherwise fall back to frequency
-        const style = edge.communicationType && edge.communicationType !== 'Unknown' 
+        const hasValidCommType = edge.communicationType && 
+            edge.communicationType.toLowerCase() !== 'unknown';
+        const style = hasValidCommType
             ? getCommunicationTypeStyle(edge.communicationType)
             : getEdgeStyle(edge.frequency);
         
@@ -755,6 +757,56 @@ function handleFilterChange() {
 }
 
 /**
+ * Check if a communication type matches the filter
+ */
+function matchesCommunicationType(commType, filter) {
+    if (!commType) return false;
+    const type = commType.toLowerCase();
+    
+    // More precise matching based on filter value
+    switch(filter) {
+        case 'batch':
+            return type === 'batch';
+        case 'api':
+            return type === 'api' || type === 'online' || type.includes('rest') || type.includes('http');
+        case 'streaming':
+            return type.includes('stream') || type.includes('real-time') || type.includes('realtime');
+        case 'file':
+            return type === 'file' || type.includes('ftp') || type.includes('sftp');
+        case 'queue':
+            return type.includes('queue') || type === 'mq' || type.includes('message');
+        case 'mixed':
+            return type === 'mixed' || type === 'hybrid';
+        default:
+            return type.includes(filter);
+    }
+}
+
+/**
+ * Check if a frequency matches the filter
+ */
+function matchesFrequency(frequency, filter) {
+    if (!frequency) return false;
+    const freq = frequency.toLowerCase();
+    
+    // More precise matching based on filter value
+    switch(filter) {
+        case 'daily':
+            return freq === 'daily' || freq === 'day';
+        case 'weekly':
+            return freq === 'weekly' || freq === 'week';
+        case 'monthly':
+            return freq === 'monthly' || freq === 'month';
+        case 'yearly':
+            return freq === 'yearly' || freq === 'year' || freq === 'annual' || freq === 'annually';
+        case 'demand':
+            return freq.includes('demand') || freq.includes('ad hoc') || freq.includes('adhoc');
+        default:
+            return freq.includes(filter);
+    }
+}
+
+/**
  * Apply filters to the current data
  */
 function applyFilters() {
@@ -764,18 +816,16 @@ function applyFilters() {
     
     // Filter by communication type
     if (activeFilters.communicationType !== 'all') {
-        filteredEdges = filteredEdges.filter(edge => {
-            const type = (edge.communicationType || '').toLowerCase();
-            return type.includes(activeFilters.communicationType);
-        });
+        filteredEdges = filteredEdges.filter(edge => 
+            matchesCommunicationType(edge.communicationType, activeFilters.communicationType)
+        );
     }
     
     // Filter by frequency
     if (activeFilters.frequency !== 'all') {
-        filteredEdges = filteredEdges.filter(edge => {
-            const freq = (edge.frequency || '').toLowerCase();
-            return freq.includes(activeFilters.frequency);
-        });
+        filteredEdges = filteredEdges.filter(edge => 
+            matchesFrequency(edge.frequency, activeFilters.frequency)
+        );
     }
     
     // Get nodes that are connected by filtered edges
