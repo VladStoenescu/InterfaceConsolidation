@@ -7,6 +7,10 @@ let offsetY = 0;
 let zoom = 1;
 let panX = 0;
 let panY = 0;
+let versions = [];
+let currentVersionId = null;
+let comparisonMode = false;
+let comparisonData = null;
 
 // Constants for visual styling
 const CHAR_WIDTH_ESTIMATE = 8; // Estimated pixels per character for font size 14
@@ -81,6 +85,9 @@ function processAndVisualize(data) {
         currentData = { nodes, edges };
         createNetworkVisualization(nodes, edges);
         showStatus(`Successfully loaded ${edges.length} interfaces between ${nodes.length} systems`, 'success');
+        
+        // Enable version controls
+        enableVersionControls();
         
         // Show legend
         document.getElementById('legend').style.display = 'block';
@@ -647,6 +654,10 @@ function showStatus(message, type) {
 document.addEventListener('DOMContentLoaded', function() {
     // Load sample data
     loadSampleData();
+    
+    // Load saved versions from localStorage
+    loadVersionsFromStorage();
+    updateVersionDropdowns();
 });
 
 /**
@@ -734,3 +745,460 @@ function loadSampleData() {
         showStatus('Sample data loaded. Upload an Excel file to visualize your own data.', 'info');
     }, 500);
 }
+
+// ==================== VERSION MANAGEMENT FUNCTIONS ====================
+
+/**
+ * Enable version control buttons
+ */
+function enableVersionControls() {
+    document.getElementById('saveVersionBtn').disabled = false;
+    document.getElementById('versionSelect').disabled = false;
+    document.getElementById('compareBtn').disabled = versions.length >= 2 ? false : true;
+}
+
+/**
+ * Load versions from localStorage
+ */
+function loadVersionsFromStorage() {
+    try {
+        const savedVersions = localStorage.getItem('interfaceVersions');
+        if (savedVersions) {
+            versions = JSON.parse(savedVersions);
+        }
+    } catch (error) {
+        console.error('Error loading versions:', error);
+        versions = [];
+    }
+}
+
+/**
+ * Save versions to localStorage
+ */
+function saveVersionsToStorage() {
+    try {
+        localStorage.setItem('interfaceVersions', JSON.stringify(versions));
+    } catch (error) {
+        console.error('Error saving versions:', error);
+        showStatus('Error saving version to storage', 'error');
+    }
+}
+
+/**
+ * Update version dropdown menus
+ */
+function updateVersionDropdowns() {
+    const versionSelect = document.getElementById('versionSelect');
+    const baseVersionSelect = document.getElementById('baseVersionSelect');
+    const compareVersionSelect = document.getElementById('compareVersionSelect');
+    
+    // Clear existing options (except the first placeholder)
+    versionSelect.innerHTML = '<option value="">Select a version...</option>';
+    baseVersionSelect.innerHTML = '<option value="">Select base version...</option>';
+    compareVersionSelect.innerHTML = '<option value="">Select version to compare...</option>';
+    
+    // Add version options
+    versions.forEach((version, index) => {
+        const option1 = document.createElement('option');
+        option1.value = version.id;
+        option1.textContent = `${version.name} (${new Date(version.timestamp).toLocaleDateString()})`;
+        versionSelect.appendChild(option1);
+        
+        const option2 = option1.cloneNode(true);
+        const option3 = option1.cloneNode(true);
+        baseVersionSelect.appendChild(option2);
+        compareVersionSelect.appendChild(option3);
+    });
+    
+    // Enable/disable compare button
+    document.getElementById('compareBtn').disabled = versions.length < 2;
+}
+
+/**
+ * Show save version dialog
+ */
+function showSaveVersionDialog() {
+    if (!currentData) {
+        showStatus('No data to save', 'error');
+        return;
+    }
+    
+    document.getElementById('saveVersionDialog').style.display = 'flex';
+    document.getElementById('versionName').value = '';
+    document.getElementById('versionDescription').value = '';
+    document.getElementById('versionName').focus();
+}
+
+/**
+ * Close save version dialog
+ */
+function closeSaveVersionDialog() {
+    document.getElementById('saveVersionDialog').style.display = 'none';
+}
+
+/**
+ * Save current data as a version
+ */
+function saveVersion() {
+    const name = document.getElementById('versionName').value.trim();
+    const description = document.getElementById('versionDescription').value.trim();
+    
+    if (!name) {
+        showStatus('Please enter a version name', 'error');
+        return;
+    }
+    
+    if (!currentData) {
+        showStatus('No data to save', 'error');
+        return;
+    }
+    
+    const version = {
+        id: 'v_' + Date.now(),
+        name: name,
+        description: description,
+        timestamp: new Date().toISOString(),
+        data: JSON.parse(JSON.stringify(currentData)) // Deep copy
+    };
+    
+    versions.push(version);
+    saveVersionsToStorage();
+    updateVersionDropdowns();
+    closeSaveVersionDialog();
+    
+    showStatus(`Version "${name}" saved successfully`, 'success');
+}
+
+/**
+ * Handle version selection from dropdown
+ */
+function handleVersionSelection() {
+    const versionId = document.getElementById('versionSelect').value;
+    
+    if (!versionId) {
+        return;
+    }
+    
+    const version = versions.find(v => v.id === versionId);
+    
+    if (!version) {
+        showStatus('Version not found', 'error');
+        return;
+    }
+    
+    // Load the version data
+    currentData = JSON.parse(JSON.stringify(version.data)); // Deep copy
+    currentVersionId = versionId;
+    comparisonMode = false;
+    comparisonData = null;
+    
+    // Hide comparison results if visible
+    document.getElementById('comparisonResults').style.display = 'none';
+    
+    // Visualize the version
+    createNetworkVisualization(currentData.nodes, currentData.edges);
+    showStatus(`Loaded version: ${version.name}`, 'success');
+}
+
+/**
+ * Show compare versions dialog
+ */
+function showCompareDialog() {
+    if (versions.length < 2) {
+        showStatus('Need at least 2 versions to compare', 'error');
+        return;
+    }
+    
+    document.getElementById('compareDialog').style.display = 'flex';
+}
+
+/**
+ * Close compare versions dialog
+ */
+function closeCompareDialog() {
+    document.getElementById('compareDialog').style.display = 'none';
+}
+
+/**
+ * Compare two versions
+ */
+function compareVersions() {
+    const baseVersionId = document.getElementById('baseVersionSelect').value;
+    const compareVersionId = document.getElementById('compareVersionSelect').value;
+    
+    if (!baseVersionId || !compareVersionId) {
+        showStatus('Please select both versions to compare', 'error');
+        return;
+    }
+    
+    if (baseVersionId === compareVersionId) {
+        showStatus('Please select different versions to compare', 'error');
+        return;
+    }
+    
+    const baseVersion = versions.find(v => v.id === baseVersionId);
+    const compareVersion = versions.find(v => v.id === compareVersionId);
+    
+    if (!baseVersion || !compareVersion) {
+        showStatus('Version not found', 'error');
+        return;
+    }
+    
+    closeCompareDialog();
+    
+    // Calculate differences
+    const diff = calculateVersionDifference(baseVersion.data, compareVersion.data);
+    
+    // Store comparison data
+    comparisonMode = true;
+    comparisonData = diff;
+    
+    // Display comparison results
+    displayComparisonResults(baseVersion, compareVersion, diff);
+    
+    // Visualize with highlighting
+    visualizeWithComparison(baseVersion.data, diff);
+}
+
+/**
+ * Calculate the difference between two versions
+ */
+function calculateVersionDifference(baseData, compareData) {
+    const diff = {
+        addedNodes: [],
+        removedNodes: [],
+        addedEdges: [],
+        removedEdges: [],
+        modifiedEdges: []
+    };
+    
+    // Find added and removed nodes
+    const baseNodeIds = new Set(baseData.nodes.map(n => n.id));
+    const compareNodeIds = new Set(compareData.nodes.map(n => n.id));
+    
+    compareData.nodes.forEach(node => {
+        if (!baseNodeIds.has(node.id)) {
+            diff.addedNodes.push(node);
+        }
+    });
+    
+    baseData.nodes.forEach(node => {
+        if (!compareNodeIds.has(node.id)) {
+            diff.removedNodes.push(node);
+        }
+    });
+    
+    // Find added, removed, and modified edges
+    const baseEdgeMap = new Map();
+    baseData.edges.forEach(edge => {
+        const key = `${edge.from}||${edge.to}`;
+        baseEdgeMap.set(key, edge);
+    });
+    
+    const compareEdgeMap = new Map();
+    compareData.edges.forEach(edge => {
+        const key = `${edge.from}||${edge.to}`;
+        compareEdgeMap.set(key, edge);
+    });
+    
+    // Find added edges
+    compareEdgeMap.forEach((edge, key) => {
+        if (!baseEdgeMap.has(key)) {
+            diff.addedEdges.push(edge);
+        } else {
+            // Check if edge was modified
+            const baseEdge = baseEdgeMap.get(key);
+            if (baseEdge.label !== edge.label || baseEdge.frequency !== edge.frequency) {
+                diff.modifiedEdges.push({
+                    base: baseEdge,
+                    compare: edge
+                });
+            }
+        }
+    });
+    
+    // Find removed edges
+    baseEdgeMap.forEach((edge, key) => {
+        if (!compareEdgeMap.has(key)) {
+            diff.removedEdges.push(edge);
+        }
+    });
+    
+    return diff;
+}
+
+/**
+ * Display comparison results
+ */
+function displayComparisonResults(baseVersion, compareVersion, diff) {
+    const resultsDiv = document.getElementById('comparisonResults');
+    const summaryDiv = document.getElementById('comparisonSummary');
+    const detailsDiv = document.getElementById('comparisonDetails');
+    
+    // Create summary
+    const totalChanges = diff.addedNodes.length + diff.removedNodes.length + 
+                        diff.addedEdges.length + diff.removedEdges.length + 
+                        diff.modifiedEdges.length;
+    
+    summaryDiv.innerHTML = `
+        <p><strong>Comparing:</strong> ${baseVersion.name} → ${compareVersion.name}</p>
+        <p><strong>Total Changes:</strong> ${totalChanges}</p>
+        <p><strong>Nodes:</strong> +${diff.addedNodes.length} added, -${diff.removedNodes.length} removed</p>
+        <p><strong>Connections:</strong> +${diff.addedEdges.length} added, -${diff.removedEdges.length} removed, ~${diff.modifiedEdges.length} modified</p>
+    `;
+    
+    // Create detailed view
+    let detailsHTML = '';
+    
+    if (diff.addedNodes.length > 0) {
+        detailsHTML += '<div class="diff-section"><h4>Added Systems</h4>';
+        diff.addedNodes.forEach(node => {
+            detailsHTML += `<div class="diff-item added">+ ${node.label}</div>`;
+        });
+        detailsHTML += '</div>';
+    }
+    
+    if (diff.removedNodes.length > 0) {
+        detailsHTML += '<div class="diff-section"><h4>Removed Systems</h4>';
+        diff.removedNodes.forEach(node => {
+            detailsHTML += `<div class="diff-item removed">- ${node.label}</div>`;
+        });
+        detailsHTML += '</div>';
+    }
+    
+    if (diff.addedEdges.length > 0) {
+        detailsHTML += '<div class="diff-section"><h4>Added Connections</h4>';
+        diff.addedEdges.forEach(edge => {
+            detailsHTML += `<div class="diff-item added">+ ${edge.from} → ${edge.to} (${edge.label}, ${edge.frequency})</div>`;
+        });
+        detailsHTML += '</div>';
+    }
+    
+    if (diff.removedEdges.length > 0) {
+        detailsHTML += '<div class="diff-section"><h4>Removed Connections</h4>';
+        diff.removedEdges.forEach(edge => {
+            detailsHTML += `<div class="diff-item removed">- ${edge.from} → ${edge.to} (${edge.label}, ${edge.frequency})</div>`;
+        });
+        detailsHTML += '</div>';
+    }
+    
+    if (diff.modifiedEdges.length > 0) {
+        detailsHTML += '<div class="diff-section"><h4>Modified Connections</h4>';
+        diff.modifiedEdges.forEach(mod => {
+            detailsHTML += `<div class="diff-item modified">~ ${mod.base.from} → ${mod.base.to}<br>`;
+            if (mod.base.label !== mod.compare.label) {
+                detailsHTML += `&nbsp;&nbsp;Data Form: ${mod.base.label} → ${mod.compare.label}<br>`;
+            }
+            if (mod.base.frequency !== mod.compare.frequency) {
+                detailsHTML += `&nbsp;&nbsp;Frequency: ${mod.base.frequency} → ${mod.compare.frequency}`;
+            }
+            detailsHTML += '</div>';
+        });
+        detailsHTML += '</div>';
+    }
+    
+    if (totalChanges === 0) {
+        detailsHTML = '<p>No differences found between the selected versions.</p>';
+    }
+    
+    detailsDiv.innerHTML = detailsHTML;
+    resultsDiv.style.display = 'block';
+}
+
+/**
+ * Close comparison results
+ */
+function closeComparisonResults() {
+    comparisonMode = false;
+    comparisonData = null;
+    document.getElementById('comparisonResults').style.display = 'none';
+    
+    // Re-visualize without highlighting
+    if (currentData) {
+        createNetworkVisualization(currentData.nodes, currentData.edges);
+    }
+}
+
+/**
+ * Visualize data with comparison highlighting
+ */
+function visualizeWithComparison(baseData, diff) {
+    // Create combined data with all nodes and edges
+    const allNodes = [...baseData.nodes];
+    const allEdges = [...baseData.edges];
+    
+    // Add new nodes from comparison
+    diff.addedNodes.forEach(node => {
+        if (!allNodes.find(n => n.id === node.id)) {
+            allNodes.push(node);
+        }
+    });
+    
+    // Add new edges from comparison
+    diff.addedEdges.forEach(edge => {
+        const key = `${edge.from}||${edge.to}`;
+        if (!allEdges.find(e => `${e.from}||${e.to}` === key)) {
+            allEdges.push(edge);
+        }
+    });
+    
+    // Visualize
+    createNetworkVisualization(allNodes, allEdges);
+    
+    // Apply highlighting
+    setTimeout(() => {
+        applyComparisonHighlighting(diff);
+    }, 200);
+}
+
+/**
+ * Apply visual highlighting for comparison
+ */
+function applyComparisonHighlighting(diff) {
+    const svg = document.getElementById('networkSvg');
+    
+    // Highlight added nodes
+    diff.addedNodes.forEach(node => {
+        const nodeElem = svg.querySelector(`.node[data-id="${node.id}"]`);
+        if (nodeElem) {
+            nodeElem.classList.add('highlighted-added');
+        }
+    });
+    
+    // Highlight removed nodes
+    diff.removedNodes.forEach(node => {
+        const nodeElem = svg.querySelector(`.node[data-id="${node.id}"]`);
+        if (nodeElem) {
+            nodeElem.classList.add('highlighted-removed');
+        }
+    });
+    
+    // Highlight edges (requires matching by index since we don't have unique IDs on paths)
+    const paths = svg.querySelectorAll('path[d]');
+    let pathIndex = 0;
+    
+    // Get current edges list
+    if (currentData && currentData.edges) {
+        currentData.edges.forEach(edge => {
+            if (pathIndex >= paths.length) return;
+            
+            const path = paths[pathIndex];
+            const edgeKey = `${edge.from}||${edge.to}`;
+            
+            // Check if edge is added
+            const isAdded = diff.addedEdges.some(e => `${e.from}||${e.to}` === edgeKey);
+            if (isAdded) {
+                path.classList.add('edge-added');
+            }
+            
+            // Check if edge is removed
+            const isRemoved = diff.removedEdges.some(e => `${e.from}||${e.to}` === edgeKey);
+            if (isRemoved) {
+                path.classList.add('edge-removed');
+            }
+            
+            pathIndex++;
+        });
+    }
+}
+
