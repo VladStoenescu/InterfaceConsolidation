@@ -1578,6 +1578,16 @@ function applyComparisonHighlighting(diff) {
 let currentView = 'network';
 let dashboardCharts = {};
 
+// Constants for visualizations
+const MAX_LABEL_LENGTH = 12;
+const TRUNCATED_LABEL_LENGTH = 10;
+const LABEL_ELLIPSIS = '...';
+const MIN_RISK_FACTOR = 0.5;
+const RISK_HASH_MODULO = 50;
+const RISK_SCALE_DIVISOR = 100;
+const HIGH_CONNECTION_THRESHOLD = 10;
+const BATCH_DOMINANCE_THRESHOLD = 0.6;
+
 /**
  * Switch between different views (network, dashboard, executive)
  */
@@ -1771,10 +1781,6 @@ function createSVGBarChart(canvasId, data, colors) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return null;
     
-    // Constants for label truncation
-    const MAX_LABEL_LENGTH = 12;
-    const TRUNCATED_LABEL_LENGTH = 10;
-    
     // Clear existing content
     canvas.innerHTML = '';
     
@@ -1825,7 +1831,9 @@ function createSVGBarChart(canvasId, data, colors) {
         labelText.setAttribute('fill', 'rgba(255, 255, 255, 0.7)');
         labelText.setAttribute('font-size', '10');
         // Truncate long labels
-        const truncated = label.length > MAX_LABEL_LENGTH ? label.substring(0, TRUNCATED_LABEL_LENGTH) + '...' : label;
+        const truncated = label.length > MAX_LABEL_LENGTH 
+            ? label.substring(0, TRUNCATED_LABEL_LENGTH) + LABEL_ELLIPSIS 
+            : label;
         labelText.textContent = truncated;
         
         // Add title for full label
@@ -1973,7 +1981,7 @@ function createRiskImpactChart() {
         // Calculate a deterministic risk factor based on system name
         // This provides consistent visualization while simulating varying risk levels
         const nameHash = node.label.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const riskFactor = 0.5 + ((nameHash % 50) / 100); // Range: 0.5 to 1.0
+        const riskFactor = MIN_RISK_FACTOR + ((nameHash % RISK_HASH_MODULO) / RISK_SCALE_DIVISOR);
         const risk = connections * riskFactor;
         return {
             x: connections,
@@ -2085,7 +2093,7 @@ function generateRecommendations() {
     
     // Check for highly connected systems
     const maxConnections = Math.max(...Object.values(connectionCount));
-    if (maxConnections > 10) {
+    if (maxConnections > HIGH_CONNECTION_THRESHOLD) {
         recommendations.push({
             title: 'High System Coupling Detected',
             description: 'Several systems have a high number of connections, creating potential single points of failure. Consider implementing redundancy or load balancing strategies for critical systems.'
@@ -2106,7 +2114,7 @@ function generateRecommendations() {
     const commTypes = getCommTypeDistribution(edges);
     const batchCount = commTypes['Batch'] || 0;
     const totalEdges = edges.length;
-    if (batchCount / totalEdges > 0.6) {
+    if (batchCount / totalEdges > BATCH_DOMINANCE_THRESHOLD) {
         recommendations.push({
             title: 'Consider Real-time Integration',
             description: 'Over 60% of interfaces use batch processing. Evaluate opportunities to implement real-time or API-based integrations for improved data freshness and responsiveness.'
