@@ -1,5 +1,10 @@
 // Global variables
 let currentData = null;
+let filteredData = null; // Store filtered data
+let activeFilters = {
+    communicationType: 'all',
+    frequency: 'all'
+};
 let isDragging = false;
 let draggedNode = null;
 let offsetX = 0;
@@ -89,8 +94,9 @@ function processAndVisualize(data) {
         // Enable version controls
         enableVersionControls();
         
-        // Show legend
+        // Show legend and filters
         document.getElementById('legend').style.display = 'block';
+        document.getElementById('filterSection').style.display = 'block';
         
     } catch (error) {
         showStatus('Error creating visualization: ' + error.message, 'error');
@@ -732,6 +738,83 @@ function showStatus(message, type) {
         }, 5000);
     }
 }
+
+/**
+ * Handle filter change
+ */
+function handleFilterChange() {
+    if (!currentData) return;
+    
+    const commTypeFilter = document.getElementById('commTypeFilter').value;
+    const frequencyFilter = document.getElementById('frequencyFilter').value;
+    
+    activeFilters.communicationType = commTypeFilter;
+    activeFilters.frequency = frequencyFilter;
+    
+    applyFilters();
+}
+
+/**
+ * Apply filters to the current data
+ */
+function applyFilters() {
+    if (!currentData) return;
+    
+    let filteredEdges = currentData.edges;
+    
+    // Filter by communication type
+    if (activeFilters.communicationType !== 'all') {
+        filteredEdges = filteredEdges.filter(edge => {
+            const type = (edge.communicationType || '').toLowerCase();
+            return type.includes(activeFilters.communicationType);
+        });
+    }
+    
+    // Filter by frequency
+    if (activeFilters.frequency !== 'all') {
+        filteredEdges = filteredEdges.filter(edge => {
+            const freq = (edge.frequency || '').toLowerCase();
+            return freq.includes(activeFilters.frequency);
+        });
+    }
+    
+    // Get nodes that are connected by filtered edges
+    const connectedNodeIds = new Set();
+    filteredEdges.forEach(edge => {
+        connectedNodeIds.add(edge.from);
+        connectedNodeIds.add(edge.to);
+    });
+    
+    const filteredNodes = currentData.nodes.filter(node => 
+        connectedNodeIds.has(node.id)
+    );
+    
+    // Update visualization with filtered data
+    filteredData = { nodes: filteredNodes, edges: filteredEdges };
+    createNetworkVisualization(filteredNodes, filteredEdges);
+    
+    // Update status
+    const filterCount = filteredEdges.length;
+    const totalCount = currentData.edges.length;
+    showStatus(`Showing ${filterCount} of ${totalCount} interfaces`, 'info');
+}
+
+/**
+ * Reset all filters
+ */
+function resetFilters() {
+    document.getElementById('commTypeFilter').value = 'all';
+    document.getElementById('frequencyFilter').value = 'all';
+    activeFilters.communicationType = 'all';
+    activeFilters.frequency = 'all';
+    
+    if (currentData) {
+        filteredData = null;
+        createNetworkVisualization(currentData.nodes, currentData.edges);
+        showStatus(`Showing all ${currentData.edges.length} interfaces`, 'info');
+    }
+}
+
 
 // Load sample data automatically for demo
 document.addEventListener('DOMContentLoaded', function() {

@@ -44,7 +44,11 @@ The Excel file should contain the following columns:
 3. Click the "Upload and Visualize" button
 4. The application will parse the Excel file and display an interactive network diagram
 5. Hover over connections to see detailed information
-6. Use your mouse to:
+6. Use the filter controls to focus on specific types of interfaces:
+   - **Filter by Communication Type**: Show only Batch, API, Streaming, File Transfer, Message Queue, or Mixed interfaces
+   - **Filter by Frequency**: Show only Daily, Weekly, Monthly, Yearly, or On Demand interfaces
+   - **Reset Filters**: Clear all filters and show all interfaces
+7. Use your mouse to:
    - Drag nodes to rearrange the layout
    - Zoom in/out using the mouse wheel
    - Pan the view by dragging the background
