@@ -17,6 +17,16 @@
             <button id="uploadBtn" onclick="handleFileUpload()">Upload and Visualize</button>
         </div>
 
+        <div class="version-section">
+            <div class="version-controls">
+                <button id="saveVersionBtn" onclick="showSaveVersionDialog()" disabled>Save as Version</button>
+                <select id="versionSelect" onchange="handleVersionSelection()" disabled>
+                    <option value="">Select a version...</option>
+                </select>
+                <button id="compareBtn" onclick="showCompareDialog()" disabled>Compare Versions</button>
+            </div>
+        </div>
+
         <div id="legend" class="legend" style="display: none;">
             <h3>Legend</h3>
             <div class="legend-section">
@@ -64,6 +74,48 @@
         
         <div id="network" class="network-container">
             <svg id="networkSvg" width="100%" height="100%"></svg>
+        </div>
+
+        <!-- Version Save Dialog -->
+        <div id="saveVersionDialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Save Current Version</h2>
+                <label for="versionName">Version Name:</label>
+                <input type="text" id="versionName" placeholder="e.g., Version 1.0" />
+                <label for="versionDescription">Description (optional):</label>
+                <textarea id="versionDescription" placeholder="Describe the changes in this version"></textarea>
+                <div class="modal-buttons">
+                    <button onclick="saveVersion()">Save</button>
+                    <button onclick="closeSaveVersionDialog()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compare Versions Dialog -->
+        <div id="compareDialog" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Compare Versions</h2>
+                <label for="baseVersionSelect">Base Version:</label>
+                <select id="baseVersionSelect">
+                    <option value="">Select base version...</option>
+                </select>
+                <label for="compareVersionSelect">Compare To:</label>
+                <select id="compareVersionSelect">
+                    <option value="">Select version to compare...</option>
+                </select>
+                <div class="modal-buttons">
+                    <button onclick="compareVersions()">Compare</button>
+                    <button onclick="closeCompareDialog()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Results -->
+        <div id="comparisonResults" class="comparison-results" style="display: none;">
+            <h3>Version Comparison</h3>
+            <button onclick="closeComparisonResults()" class="close-btn">Close Comparison</button>
+            <div id="comparisonSummary"></div>
+            <div id="comparisonDetails"></div>
         </div>
     </div>
 
