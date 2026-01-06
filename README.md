@@ -24,6 +24,17 @@ A simple web application to consolidate an Excel file into a visual representati
   - **On Demand**: Solid pink line (thin)
   - **Other/Unknown**: Solid gray line (thin)
 - **Data Form Labels**: Each connection shows the type of data exchange (CSV, PDF, TXT, XML, etc.)
+- **Summary Insights Dashboard**: 
+  - KPI cards showing total interfaces, systems, average connections, and data quality score
+  - Visual charts displaying interface distribution by communication type and frequency
+  - Top 5 most connected systems analysis
+  - Data validation statistics
+- **Executive Management View**:
+  - High-level KPIs including critical systems count, risk score, and integration complexity
+  - Critical path systems analysis with impact assessment
+  - Risk impact scatter plot showing system dependencies vs. risk scores
+  - Strategic recommendations based on current interface architecture
+  - Export functionality to generate printable PDF reports
 
 ## Required Excel Columns
 
@@ -40,18 +51,36 @@ The Excel file should contain the following columns:
 ## How to Use
 
 1. Open `index.html` in a modern web browser
-2. Click on the file input or drag and drop an Excel file
-3. Click the "Upload and Visualize" button
-4. The application will parse the Excel file and display an interactive network diagram
-5. Hover over connections to see detailed information
-6. Use the filter controls to focus on specific types of interfaces:
-   - **Filter by Communication Type**: Show only Batch, API, Streaming, File Transfer, Message Queue, or Mixed interfaces
-   - **Filter by Frequency**: Show only Daily, Weekly, Monthly, Yearly, or On Demand interfaces
-   - **Reset Filters**: Clear all filters and show all interfaces
-7. Use your mouse to:
-   - Drag nodes to rearrange the layout
-   - Zoom in/out using the mouse wheel
-   - Pan the view by dragging the background
+2. The application will automatically load sample data for demonstration
+3. **Switch between views** using the navigation buttons:
+   - **Network View**: Interactive network diagram of system interfaces
+   - **Dashboard**: Summary insights and metrics with visual charts
+   - **Executive View**: High-level strategic view with risk analysis
+4. **Upload your own data**: Click "Choose File" and select an Excel file, then click "Upload and Visualize"
+5. **Network View features**:
+   - Hover over connections to see detailed information
+   - Use the filter controls to focus on specific types of interfaces:
+     - **Filter by Communication Type**: Show only Batch, API, Streaming, File Transfer, Message Queue, or Mixed interfaces
+     - **Filter by Frequency**: Show only Daily, Weekly, Monthly, Yearly, or On Demand interfaces
+     - **Reset Filters**: Clear all filters and show all interfaces
+   - Use your mouse to:
+     - Drag nodes to rearrange the layout
+     - Zoom in/out using the mouse wheel
+     - Pan the view by dragging the background
+6. **Dashboard features**:
+   - View KPIs: Total interfaces, systems, average connections, and data quality score
+   - Analyze charts showing interface distribution and top connected systems
+   - Monitor data validation statistics
+7. **Executive View features**:
+   - Review critical systems and overall risk assessment
+   - Analyze critical path systems with impact ratings
+   - View risk impact scatter plot
+   - Read strategic recommendations
+   - Export report as PDF using the "Export PDF Report" button (opens browser print dialog)
+8. **Version Management**:
+   - Save current data as a version for comparison
+   - Load previously saved versions
+   - Compare different versions to track changes
 
 ## Example Excel File Structure
 
@@ -66,8 +95,12 @@ The Excel file should contain the following columns:
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Excel Parsing**: SheetJS (xlsx library)
-- **Visualization**: Custom SVG-based network diagram with force-directed layout algorithm
+- **Visualization**: 
+  - Network diagram: Custom SVG-based visualization with force-directed layout algorithm
+  - Dashboard charts: Custom SVG bar charts
+  - Executive view: Custom SVG scatter plot for risk analysis
 - **No Backend Required**: Runs entirely in the browser
+- **No External Dependencies**: All visualizations use custom SVG implementations for offline compatibility
 
 ## Browser Compatibility
 
