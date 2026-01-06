@@ -130,6 +130,8 @@ function processAndVisualize(data) {
 
 /**
  * Update network statistics display
+ * @param {Array} nodes - Array of network node objects with id and label properties
+ * @param {Array} edges - Array of network edge objects with communication type information
  */
 function updateNetworkStats(nodes, edges) {
     // Count unique communication types
