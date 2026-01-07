@@ -17,6 +17,16 @@ let currentVersionId = null;
 let comparisonMode = false;
 let comparisonData = null;
 
+// Multi-file support
+let existingConnectionsData = null;
+let targetConnectionsData = null;
+let changedConnectionsData = null;
+let activeConnectionTab = 'all'; // 'all', 'existing', 'new', 'changed'
+
+// Dynamic legend data
+let discoveredPatterns = new Map(); // pattern -> style
+let discoveredFrequencies = new Map(); // frequency -> style
+
 // Constants for visual styling
 const CHAR_WIDTH_ESTIMATE = 8; // Estimated pixels per character for font size 14
 const TEXT_BG_PADDING = 2; // Padding around text labels
@@ -158,6 +168,129 @@ function updateNetworkStats(nodes, edges) {
     
     // Show stats section
     document.getElementById('networkStats').style.display = 'flex';
+    
+    // Build dynamic legend
+    buildDynamicLegend(edges);
+}
+
+/**
+ * Build legend dynamically based on discovered patterns and frequencies
+ */
+function buildDynamicLegend(edges) {
+    const legendDiv = document.getElementById('legend');
+    if (!legendDiv) return;
+    
+    // Collect unique patterns and frequencies from the data
+    const patterns = new Set();
+    const frequencies = new Set();
+    
+    edges.forEach(edge => {
+        if (edge.integrationPattern && edge.integrationPattern.toLowerCase() !== 'unknown') {
+            patterns.add(edge.integrationPattern);
+        }
+        if (edge.frequency && edge.frequency.toLowerCase() !== 'unknown') {
+            frequencies.add(edge.frequency);
+        }
+    });
+    
+    // Build the legend HTML
+    let legendHTML = '<h3>Legend</h3>';
+    
+    // Integration Patterns section
+    if (patterns.size > 0) {
+        legendHTML += '<div class="legend-section"><h4>Integration Pattern</h4>';
+        
+        patterns.forEach(pattern => {
+            const style = getIntegrationPatternStyle(pattern);
+            const dasharray = style.dasharray ? `stroke-dasharray="${style.dasharray}"` : '';
+            legendHTML += `
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" 
+                              stroke="${style.color}" 
+                              stroke-width="${style.width}" 
+                              ${dasharray}
+                              opacity="${style.opacity}"/>
+                    </svg>
+                    <span>${pattern}</span>
+                </div>
+            `;
+        });
+        
+        legendHTML += '</div>';
+    }
+    
+    // Frequencies section
+    if (frequencies.size > 0) {
+        legendHTML += '<div class="legend-section"><h4>Frequency (fallback if no Integration Pattern)</h4>';
+        
+        frequencies.forEach(frequency => {
+            const style = getEdgeStyle(frequency);
+            const dasharray = style.dasharray ? `stroke-dasharray="${style.dasharray}"` : '';
+            legendHTML += `
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" 
+                              stroke="${style.color}" 
+                              stroke-width="${style.width}" 
+                              ${dasharray}/>
+                    </svg>
+                    <span>${frequency}</span>
+                </div>
+            `;
+        });
+        
+        legendHTML += '</div>';
+    }
+    
+    legendDiv.innerHTML = legendHTML;
+    
+    // Update filter dropdowns with discovered values
+    updateFilterDropdowns(patterns, frequencies);
+}
+
+/**
+ * Update filter dropdowns with discovered patterns and frequencies
+ */
+function updateFilterDropdowns(patterns, frequencies) {
+    const patternFilter = document.getElementById('commTypeFilter');
+    const frequencyFilter = document.getElementById('frequencyFilter');
+    
+    if (!patternFilter || !frequencyFilter) return;
+    
+    // Save current selection
+    const currentPattern = patternFilter.value;
+    const currentFrequency = frequencyFilter.value;
+    
+    // Update pattern filter
+    let patternHTML = '<option value="all">All Types</option>';
+    patterns.forEach(pattern => {
+        patternHTML += `<option value="${pattern.toLowerCase()}">${pattern}</option>`;
+    });
+    patternFilter.innerHTML = patternHTML;
+    
+    // Restore selection if still valid
+    if (currentPattern !== 'all') {
+        const hasPattern = Array.from(patterns).some(p => p.toLowerCase() === currentPattern);
+        if (hasPattern) {
+            patternFilter.value = currentPattern;
+        }
+    }
+    
+    // Update frequency filter
+    let frequencyHTML = '<option value="all">All Frequencies</option>';
+    frequencies.forEach(frequency => {
+        frequencyHTML += `<option value="${frequency.toLowerCase()}">${frequency}</option>`;
+    });
+    frequencyFilter.innerHTML = frequencyHTML;
+    
+    // Restore selection if still valid
+    if (currentFrequency !== 'all') {
+        const hasFrequency = Array.from(frequencies).some(f => f.toLowerCase() === currentFrequency);
+        if (hasFrequency) {
+            frequencyFilter.value = currentFrequency;
+        }
+    }
 }
 
 /**
@@ -331,98 +464,59 @@ function getFieldValue(row, possibleKeys) {
 }
 
 /**
- * Get edge styling based on integration pattern
+ * Color palette for dynamic pattern assignment
+ */
+const PATTERN_COLORS = [
+    '#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', 
+    '#FCBAD3', '#FFD93D', '#A8E6CF', '#FFB6B9', '#C7CEEA',
+    '#B4E7CE', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA'
+];
+
+const PATTERN_DASHARRAY_STYLES = [
+    '',           // solid
+    '8,4',        // dashed
+    '3,3',        // dotted
+    '5,5',        // dotted2
+    '12,3,3,3',   // dash-dot-dot
+    '8,3,2,3',    // dash-dot
+    '10,5,3,5',   // complex dash
+    '15,5',       // long dash
+    '2,8',        // sparse dot
+];
+
+/**
+ * Get or assign style for an integration pattern dynamically
  */
 function getIntegrationPatternStyle(integrationPattern) {
     const pattern = integrationPattern.toLowerCase();
     
-    // Direct DB Connection - solid thick line
-    if (pattern.includes('direct') && pattern.includes('db')) {
-        return {
-            color: '#FF6B6B',
-            width: 4,
-            dasharray: '',
-            opacity: 1
-        };
+    // Check if we've already assigned a style to this pattern
+    if (discoveredPatterns.has(pattern)) {
+        return discoveredPatterns.get(pattern);
     }
     
-    // File Transfer - dotted line
-    if (pattern.includes('file') || pattern.includes('ftp') || pattern.includes('sftp')) {
-        return {
-            color: '#AA96DA',
-            width: 3,
-            dasharray: '5,5',
-            opacity: 1
-        };
+    // Assign a new style based on the number of patterns we've discovered
+    const patternIndex = discoveredPatterns.size;
+    const colorIndex = patternIndex % PATTERN_COLORS.length;
+    const dasharrayIndex = patternIndex % PATTERN_DASHARRAY_STYLES.length;
+    
+    // Determine width based on pattern keywords for better visual distinction
+    let width = 3;
+    if (pattern.includes('direct') || pattern.includes('db') || pattern.includes('batch')) {
+        width = 4;
+    } else if (pattern === 'unknown' || pattern === 'other') {
+        width = 2;
     }
     
-    // Messaging / Message Queue - double dash
-    if (pattern.includes('messag') || pattern.includes('queue') || pattern.includes('mq')) {
-        return {
-            color: '#FCBAD3',
-            width: 3,
-            dasharray: '12,3,3,3',
-            opacity: 1
-        };
-    }
-    
-    // Streaming / Real-time - animated dotted line
-    if (pattern.includes('stream') || pattern.includes('real-time') || pattern.includes('realtime')) {
-        return {
-            color: '#95E1D3',
-            width: 3,
-            dasharray: '3,3',
-            opacity: 1
-        };
-    }
-    
-    // UI Interaction - dash-dot pattern
-    if (pattern.includes('ui') || pattern.includes('user interface') || pattern.includes('interaction')) {
-        return {
-            color: '#FFD93D',
-            width: 3,
-            dasharray: '8,3,2,3',
-            opacity: 1
-        };
-    }
-    
-    // Web Service / API - dashed line
-    if (pattern.includes('web') || pattern.includes('service') || pattern.includes('api') || pattern.includes('rest') || pattern.includes('soap') || pattern.includes('http')) {
-        return {
-            color: '#4ECDC4',
-            width: 3,
-            dasharray: '8,4',
-            opacity: 1
-        };
-    }
-    
-    // Batch processing - thick solid line (legacy support)
-    if (pattern.includes('batch')) {
-        return {
-            color: '#FF6B6B',
-            width: 4,
-            dasharray: '',
-            opacity: 1
-        };
-    }
-    
-    // Mixed/Hybrid - alternating dash pattern
-    if (pattern.includes('mixed') || pattern.includes('hybrid')) {
-        return {
-            color: '#F38181',
-            width: 3,
-            dasharray: '10,5,3,5',
-            opacity: 1
-        };
-    }
-    
-    // Other / Unknown / Empty - thin gray line
-    return {
-        color: '#999999',
-        width: 2,
-        dasharray: '',
-        opacity: 0.6
+    const style = {
+        color: PATTERN_COLORS[colorIndex],
+        width: width,
+        dasharray: PATTERN_DASHARRAY_STYLES[dasharrayIndex],
+        opacity: (pattern === 'unknown' || pattern === 'other') ? 0.6 : 1
     };
+    
+    discoveredPatterns.set(pattern, style);
+    return style;
 }
 
 /**
@@ -498,62 +592,48 @@ function showInterfaceDescription(edge) {
 }
 
 /**
- * Get edge styling based on frequency
+ * Frequency color palette for dynamic assignment
+ */
+const FREQUENCY_COLORS = [
+    '#2196F3', '#4CAF50', '#FF9800', '#9E9E9E', '#E91E63', 
+    '#607D8B', '#00BCD4', '#8BC34A', '#FFC107', '#9C27B0'
+];
+
+/**
+ * Get or assign style for a frequency dynamically
  */
 function getEdgeStyle(frequency) {
     const freq = frequency.toLowerCase();
     
-    // Daily frequency - solid blue line, thicker
+    // Check if we've already assigned a style to this frequency
+    if (discoveredFrequencies.has(freq)) {
+        return discoveredFrequencies.get(freq);
+    }
+    
+    // Assign a new style based on the number of frequencies we've discovered
+    const freqIndex = discoveredFrequencies.size;
+    const colorIndex = freqIndex % FREQUENCY_COLORS.length;
+    
+    // Assign dasharray based on index for variety
+    const dasharrays = ['', '10,5', '2,5', '', '5,5', '', '8,4', '3,3'];
+    const dasharray = dasharrays[freqIndex % dasharrays.length];
+    
+    // Determine width - more frequent = thicker
+    let width = 3;
     if (freq.includes('daily') || freq.includes('day')) {
-        return {
-            color: '#2196F3',
-            width: 3,
-            dasharray: ''
-        };
+        width = 3;
+    } else if (freq.includes('demand') || freq.includes('adhoc') || freq.includes('ad hoc')) {
+        width = 2;
     }
     
-    // Weekly frequency - dashed green line
-    if (freq.includes('weekly') || freq.includes('week')) {
-        return {
-            color: '#4CAF50',
-            width: 3,
-            dasharray: '10,5'
-        };
-    }
-    
-    // Monthly frequency - dotted orange line
-    if (freq.includes('monthly') || freq.includes('month')) {
-        return {
-            color: '#FF9800',
-            width: 3,
-            dasharray: '2,5'
-        };
-    }
-    
-    // Yearly frequency - solid gray line
-    if (freq.includes('yearly') || freq.includes('year') || freq.includes('annual')) {
-        return {
-            color: '#9E9E9E',
-            width: 3,
-            dasharray: ''
-        };
-    }
-    
-    // On demand - solid pink line, thinner
-    if (freq.includes('demand') || freq.includes('ad hoc') || freq.includes('adhoc')) {
-        return {
-            color: '#E91E63',
-            width: 2,
-            dasharray: ''
-        };
-    }
-    
-    // Default/Unknown - solid gray line, thin
-    return {
-        color: '#607D8B',
-        width: 2,
-        dasharray: ''
+    const style = {
+        color: FREQUENCY_COLORS[colorIndex],
+        width: width,
+        dasharray: dasharray
     };
+    
+    discoveredFrequencies.set(freq, style);
+    return style;
 }
 
 /**
@@ -1204,28 +1284,10 @@ function handleFilterChange() {
 function matchesIntegrationPattern(pattern, filter) {
     if (!pattern) return false;
     const p = pattern.toLowerCase();
+    const f = filter.toLowerCase();
     
-    // More precise matching based on filter value
-    switch(filter) {
-        case 'batch':
-            return p === 'batch';
-        case 'api':
-            return p.includes('web') || p.includes('service') || p.includes('api') || p.includes('rest') || p.includes('soap');
-        case 'streaming':
-            return p.includes('stream') || p.includes('real-time') || p.includes('realtime');
-        case 'file':
-            return p.includes('file') || p.includes('ftp') || p.includes('sftp');
-        case 'queue':
-            return p.includes('queue') || p.includes('mq') || p.includes('messag');
-        case 'mixed':
-            return p === 'mixed' || p === 'hybrid';
-        case 'db':
-            return p.includes('db') || p.includes('database') || p.includes('direct');
-        case 'ui':
-            return p.includes('ui') || p.includes('interaction') || p.includes('user interface');
-        default:
-            return p.includes(filter);
-    }
+    // Direct match
+    return p === f;
 }
 
 /**
@@ -1234,22 +1296,10 @@ function matchesIntegrationPattern(pattern, filter) {
 function matchesFrequency(frequency, filter) {
     if (!frequency) return false;
     const freq = frequency.toLowerCase();
+    const f = filter.toLowerCase();
     
-    // More precise matching based on filter value
-    switch(filter) {
-        case 'daily':
-            return freq === 'daily' || freq === 'day';
-        case 'weekly':
-            return freq === 'weekly' || freq === 'week';
-        case 'monthly':
-            return freq === 'monthly' || freq === 'month';
-        case 'yearly':
-            return freq === 'yearly' || freq === 'year' || freq === 'annual' || freq === 'annually';
-        case 'demand':
-            return freq.includes('demand') || freq.includes('ad hoc') || freq.includes('adhoc');
-        default:
-            return freq.includes(filter);
-    }
+    // Direct match
+    return freq === f;
 }
 
 /**
