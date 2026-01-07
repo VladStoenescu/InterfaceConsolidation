@@ -853,20 +853,43 @@ function calculateNodePositions(nodes, width, height) {
         return positions;
     }
     
-    // Initialize nodes with random positions in a larger spread
+    // Initialize nodes with grid-based positions for better distribution with large datasets
     const margin = 100;
-    nodes.forEach(node => {
+    const nodeCount = nodes.length;
+    
+    // Calculate grid dimensions - aim for roughly square grid
+    const cols = Math.ceil(Math.sqrt(nodeCount));
+    const rows = Math.ceil(nodeCount / cols);
+    
+    // Calculate spacing based on available area
+    const availableWidth = width - 2 * margin;
+    const availableHeight = height - 2 * margin;
+    const cellWidth = availableWidth / cols;
+    const cellHeight = availableHeight / rows;
+    
+    nodes.forEach((node, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        
+        // Position node in grid cell with some randomization to avoid perfect alignment
+        const randomOffset = 20;
         positions[node.id] = {
-            x: margin + Math.random() * (width - 2 * margin),
-            y: margin + Math.random() * (height - 2 * margin),
+            x: margin + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * randomOffset,
+            y: margin + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * randomOffset,
             vx: 0,
             vy: 0
         };
     });
     
-    // Force-directed layout parameters
-    const iterations = 100;
-    const repulsionStrength = 8000;
+    // Force-directed layout parameters - scale with node count for better results
+    // More nodes need more iterations and different force parameters
+    const baseIterations = 100;
+    const iterations = Math.min(baseIterations + Math.floor(nodeCount / 50), 300);
+    
+    // Scale repulsion strength based on node count
+    const baseRepulsion = 8000;
+    const repulsionStrength = baseRepulsion * Math.max(1, Math.sqrt(nodeCount / 50));
+    
     const attractionStrength = 0.01;
     const dampening = 0.85;
     const minDistance = 150; // Minimum distance between nodes
@@ -1033,7 +1056,11 @@ function updateEdges() {
     if (!currentData) return;
     
     const svg = document.getElementById('networkSvg');
-    const paths = svg.querySelectorAll('path[d]');
+    const g = document.getElementById('mainGroup');
+    if (!g) return;
+    
+    // Get all paths and text groups in the correct order
+    const paths = g.querySelectorAll('path[d]');
     const nodes = svg.querySelectorAll('.node');
     
     const positions = {};
@@ -1045,6 +1072,10 @@ function updateEdges() {
         };
     });
     
+    // We need to find text groups that correspond to edge labels
+    // They appear after each path element in the DOM
+    const allChildren = Array.from(g.children);
+    
     let pathIndex = 0;
     currentData.edges.forEach(edge => {
         const fromPos = positions[edge.from];
@@ -1055,10 +1086,54 @@ function updateEdges() {
         const path = paths[pathIndex];
         
         // Calculate curve control points
-        const { controlX, controlY } = calculateCurveControlPoint(fromPos, toPos);
+        const { controlX, controlY, midX, midY, perpX, perpY } = calculateCurveControlPoint(fromPos, toPos);
         
         const pathData = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
         path.setAttribute('d', pathData);
+        
+        // Find the corresponding text group (it should be right after the path)
+        // Look for the next g element that contains text elements
+        const pathIndexInChildren = allChildren.indexOf(path);
+        if (pathIndexInChildren >= 0 && pathIndexInChildren + 1 < allChildren.length) {
+            const nextElement = allChildren[pathIndexInChildren + 1];
+            if (nextElement.tagName === 'g' && nextElement.querySelector('text')) {
+                // This is our text group - update its position
+                const labelX = midX + perpX * 0.6;
+                const labelY = midY + perpY * 0.6;
+                
+                // Get all text elements and the background rect
+                const texts = nextElement.querySelectorAll('text');
+                const rect = nextElement.querySelector('rect');
+                
+                if (texts.length > 0) {
+                    // Split label into lines to recalculate positions
+                    const labelLines = edge.label.split('\n');
+                    const totalHeight = labelLines.length * EDGE_LABEL_LINE_HEIGHT;
+                    const startY = labelY - (totalHeight / 2) + EDGE_LABEL_LINE_HEIGHT / 2;
+                    
+                    // Update each text element position
+                    texts.forEach((text, index) => {
+                        text.setAttribute('x', labelX);
+                        text.setAttribute('y', startY + (index * EDGE_LABEL_LINE_HEIGHT));
+                    });
+                    
+                    // Update background rect position if it exists
+                    if (rect) {
+                        // Calculate max width from text elements
+                        let maxWidth = 0;
+                        texts.forEach(text => {
+                            const estimatedWidth = text.textContent.length * EDGE_LABEL_CHAR_WIDTH;
+                            if (estimatedWidth > maxWidth) maxWidth = estimatedWidth;
+                        });
+                        
+                        rect.setAttribute('x', labelX - maxWidth/2 - TEXT_BG_PADDING);
+                        rect.setAttribute('y', startY - EDGE_LABEL_LINE_HEIGHT + TEXT_BG_PADDING);
+                        rect.setAttribute('width', maxWidth + TEXT_BG_PADDING * 2);
+                        rect.setAttribute('height', totalHeight + TEXT_BG_PADDING * 2);
+                    }
+                }
+            }
+        }
         
         pathIndex++;
     });
