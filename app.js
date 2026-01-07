@@ -116,6 +116,181 @@ function handleFileUpload() {
 }
 
 /**
+ * Handle multi-file upload for existing, target (new), and changed connections
+ */
+function handleMultiFileUpload() {
+    const existingFile = document.getElementById('existingConnectionsFile').files[0];
+    const targetFile = document.getElementById('targetConnectionsFile').files[0];
+    const changedFile = document.getElementById('changedConnectionsFile').files[0];
+    
+    // At least one file must be selected
+    if (!existingFile && !targetFile && !changedFile) {
+        showStatus('Please select at least one file', 'error');
+        return;
+    }
+    
+    showLoading();
+    showStatus('Processing files...', 'info');
+    
+    const filePromises = [];
+    
+    // Read existing connections
+    if (existingFile) {
+        filePromises.push(
+            readExcelFile(existingFile).then(data => {
+                existingConnectionsData = data.map(row => ({ ...row, _connectionType: 'existing' }));
+                updateFileStatus('existingConnectionsStatus', existingFile.name, data.length);
+            })
+        );
+    } else {
+        existingConnectionsData = null;
+    }
+    
+    // Read target connections (new)
+    if (targetFile) {
+        filePromises.push(
+            readExcelFile(targetFile).then(data => {
+                targetConnectionsData = data.map(row => ({ ...row, _connectionType: 'new' }));
+                updateFileStatus('targetConnectionsStatus', targetFile.name, data.length);
+            })
+        );
+    } else {
+        targetConnectionsData = null;
+    }
+    
+    // Read changed connections
+    if (changedFile) {
+        filePromises.push(
+            readExcelFile(changedFile).then(data => {
+                changedConnectionsData = data.map(row => ({ ...row, _connectionType: 'changed' }));
+                updateFileStatus('changedConnectionsStatus', changedFile.name, data.length);
+            })
+        );
+    } else {
+        changedConnectionsData = null;
+    }
+    
+    // Process all files
+    Promise.all(filePromises)
+        .then(() => {
+            // Combine all data
+            const combinedData = [
+                ...(existingConnectionsData || []),
+                ...(targetConnectionsData || []),
+                ...(changedConnectionsData || [])
+            ];
+            
+            if (combinedData.length === 0) {
+                hideLoading();
+                showStatus('No data found in the uploaded files', 'error');
+                return;
+            }
+            
+            // Process and visualize
+            processAndVisualize(combinedData);
+            
+            // Show connection tabs
+            document.getElementById('connectionTabs').style.display = 'flex';
+            
+            hideLoading();
+        })
+        .catch(error => {
+            hideLoading();
+            showStatus('Error processing files: ' + error.message, 'error');
+            console.error(error);
+        });
+}
+
+/**
+ * Read an Excel file and return JSON data
+ */
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                resolve(jsonData);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        
+        reader.onerror = function() {
+            reject(new Error('Error reading file: ' + file.name));
+        };
+        
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+/**
+ * Update file status display
+ */
+function updateFileStatus(statusId, filename, rowCount) {
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) {
+        statusEl.textContent = `${filename} (${rowCount} rows)`;
+        statusEl.classList.add('selected');
+    }
+}
+
+/**
+ * Switch between connection type tabs
+ */
+function switchConnectionTab(tabType) {
+    activeConnectionTab = tabType;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabType}"]`)?.classList.add('active');
+    
+    // Filter and display data based on tab
+    if (!currentData) return;
+    
+    let filteredEdges;
+    let filteredNodes;
+    
+    if (tabType === 'all') {
+        filteredEdges = currentData.edges;
+        filteredNodes = currentData.nodes;
+    } else {
+        // Filter edges by connection type
+        filteredEdges = currentData.edges.filter(edge => {
+            // Check if any flow in this edge matches the connection type
+            return edge.flows && edge.flows.some(flow => flow._connectionType === tabType);
+        });
+        
+        // Get nodes connected by filtered edges
+        const connectedNodeIds = new Set();
+        filteredEdges.forEach(edge => {
+            connectedNodeIds.add(edge.from);
+            connectedNodeIds.add(edge.to);
+        });
+        
+        filteredNodes = currentData.nodes.filter(node => connectedNodeIds.has(node.id));
+    }
+    
+    // Update visualization
+    createNetworkVisualization(filteredNodes, filteredEdges);
+    
+    // Update stats
+    showStatus(`Showing ${filteredEdges.length} ${tabType === 'all' ? '' : tabType + ' '}connections`, 'info');
+}
+
+/**
  * Process Excel data and create visualization
  */
 function processAndVisualize(data) {
@@ -309,6 +484,7 @@ function extractNodesAndEdges(data) {
         // Support both "Integration Pattern" (new) and "Communication Type" (legacy)
         const integrationPattern = getFieldValue(row, ['Integration Pattern', 'integration pattern', 'INTEGRATION PATTERN', 'IntegrationPattern', 'Communication Type', 'communication type', 'COMMUNICATION TYPE', 'CommunicationType', 'Comm Type', 'Type', 'Mode']) || 'Unknown';
         const description = getFieldValue(row, ['Description', 'description', 'DESCRIPTION', 'Desc', 'desc']) || '';
+        const connectionType = row._connectionType || 'existing'; // Get connection type marker
         
         // Skip rows without required fields
         if (!fromApp || !toApp) {
@@ -344,7 +520,8 @@ function extractNodesAndEdges(data) {
                     dataForm: dataForm,
                     frequency: frequency,
                     integrationPattern: integrationPattern,
-                    description: description
+                    description: description,
+                    _connectionType: connectionType
                 }]
             });
         } else {
@@ -353,7 +530,8 @@ function extractNodesAndEdges(data) {
                 dataForm: dataForm,
                 frequency: frequency,
                 integrationPattern: integrationPattern,
-                description: description
+                description: description,
+                _connectionType: connectionType
             });
         }
     });
@@ -1375,6 +1553,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
         document.body.classList.add('light-theme');
+    }
+    
+    // Add file input listeners
+    const existingInput = document.getElementById('existingConnectionsFile');
+    const targetInput = document.getElementById('targetConnectionsFile');
+    const changedInput = document.getElementById('changedConnectionsFile');
+    
+    if (existingInput) {
+        existingInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const status = document.getElementById('existingConnectionsStatus');
+            if (file && status) {
+                status.textContent = `${file.name} selected`;
+                status.classList.add('selected');
+            }
+        });
+    }
+    
+    if (targetInput) {
+        targetInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const status = document.getElementById('targetConnectionsStatus');
+            if (file && status) {
+                status.textContent = `${file.name} selected`;
+                status.classList.add('selected');
+            }
+        });
+    }
+    
+    if (changedInput) {
+        changedInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const status = document.getElementById('changedConnectionsStatus');
+            if (file && status) {
+                status.textContent = `${file.name} selected`;
+                status.classList.add('selected');
+            }
+        });
     }
 });
 
