@@ -1394,7 +1394,8 @@ function loadSampleData() {
  * Create a unique key for an edge
  */
 function createEdgeKey(edge) {
-    return `${edge.from}||${edge.to}`;
+    // Use the same separator as in extractNodesAndEdges for consistency
+    return `${edge.from}\u0000${edge.to}`;
 }
 
 /**
@@ -1544,8 +1545,17 @@ function handleVersionSelection() {
     // Hide comparison results if visible
     document.getElementById('comparisonResults').style.display = 'none';
     
-    // Visualize the version
-    createNetworkVisualization(currentData.nodes, currentData.edges);
+    // Refresh the current view based on which view is active
+    if (currentView === 'network') {
+        createNetworkVisualization(currentData.nodes, currentData.edges);
+        // Update network stats
+        updateNetworkStats(currentData.nodes, currentData.edges);
+    } else if (currentView === 'dashboard') {
+        initializeDashboard();
+    } else if (currentView === 'executive') {
+        initializeExecutiveView();
+    }
+    
     showStatus(`Loaded version: ${version.name}`, 'success');
 }
 
@@ -1610,6 +1620,59 @@ function compareVersions() {
 }
 
 /**
+ * Check if an edge has been modified by comparing its properties deeply
+ */
+function isEdgeModified(baseEdge, compareEdge) {
+    // Compare basic properties with null safety
+    if ((baseEdge.label || '') !== (compareEdge.label || '') || 
+        (baseEdge.frequency || '') !== (compareEdge.frequency || '') ||
+        (baseEdge.integrationPattern || '') !== (compareEdge.integrationPattern || '')) {
+        return true;
+    }
+    
+    // Check if flows existence differs
+    const baseHasFlows = baseEdge.flows && Array.isArray(baseEdge.flows) && baseEdge.flows.length > 0;
+    const compareHasFlows = compareEdge.flows && Array.isArray(compareEdge.flows) && compareEdge.flows.length > 0;
+    
+    if (baseHasFlows !== compareHasFlows) {
+        return true;
+    }
+    
+    // Compare flows array if both have flows
+    if (baseHasFlows && compareHasFlows) {
+        if (baseEdge.flows.length !== compareEdge.flows.length) {
+            return true;
+        }
+        
+        // Helper function to create normalized flow object
+        const normalizeFlow = (f) => ({
+            dataForm: f.dataForm || '',
+            frequency: f.frequency || '',
+            integrationPattern: f.integrationPattern || '',
+            description: f.description || ''
+        });
+        
+        // Create comparable representations of flows
+        const normalizeAndSort = (flows) => {
+            return flows.map(normalizeFlow).sort((a, b) => {
+                const aStr = JSON.stringify(a);
+                const bStr = JSON.stringify(b);
+                return aStr.localeCompare(bStr);
+            });
+        };
+        
+        const baseFlowsStr = JSON.stringify(normalizeAndSort(baseEdge.flows));
+        const compareFlowsStr = JSON.stringify(normalizeAndSort(compareEdge.flows));
+        
+        if (baseFlowsStr !== compareFlowsStr) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
  * Calculate the difference between two versions
  */
 function calculateVersionDifference(baseData, compareData) {
@@ -1657,7 +1720,7 @@ function calculateVersionDifference(baseData, compareData) {
         } else {
             // Check if edge was modified
             const baseEdge = baseEdgeMap.get(key);
-            if (baseEdge.label !== edge.label || baseEdge.frequency !== edge.frequency) {
+            if (isEdgeModified(baseEdge, edge)) {
                 diff.modifiedEdges.push({
                     base: baseEdge,
                     compare: edge
