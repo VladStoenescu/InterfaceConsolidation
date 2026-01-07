@@ -31,6 +31,9 @@ const EDGE_LABEL_CHAR_WIDTH = 7; // Character width for edge label text
 // Constants for force-directed layout algorithm
 const LAYOUT_GRID_RANDOM_OFFSET = 20; // Random offset in pixels for initial grid positioning
 const LAYOUT_SCALING_DIVISOR = 50; // Divisor for scaling iterations and repulsion based on node count
+const LAYOUT_MAX_ITERATIONS = 300; // Maximum iterations for force-directed algorithm
+const LAYOUT_MIN_REPULSION_MULTIPLIER = 1; // Minimum multiplier for repulsion strength scaling
+const EDGE_LABEL_OFFSET_FACTOR = 0.6; // Perpendicular offset factor for edge label positioning
 
 /**
  * Show loading spinner
@@ -711,8 +714,8 @@ function createNetworkVisualization(nodes, edges) {
         g.appendChild(path);
         
         // Position label along the curve (at the control point offset)
-        const labelX = midX + perpX * 0.6;
-        const labelY = midY + perpY * 0.6;
+        const labelX = midX + perpX * EDGE_LABEL_OFFSET_FACTOR;
+        const labelY = midY + perpY * EDGE_LABEL_OFFSET_FACTOR;
         
         // Split label into lines (integration pattern and data format)
         const labelLines = edge.label.split('\n');
@@ -887,11 +890,11 @@ function calculateNodePositions(nodes, width, height) {
     // Force-directed layout parameters - scale with node count for better results
     // More nodes need more iterations and different force parameters
     const baseIterations = 100;
-    const iterations = Math.min(baseIterations + Math.floor(nodeCount / LAYOUT_SCALING_DIVISOR), 300);
+    const iterations = Math.min(baseIterations + Math.floor(nodeCount / LAYOUT_SCALING_DIVISOR), LAYOUT_MAX_ITERATIONS);
     
     // Scale repulsion strength based on node count
     const baseRepulsion = 8000;
-    const repulsionStrength = baseRepulsion * Math.max(1, Math.sqrt(nodeCount / LAYOUT_SCALING_DIVISOR));
+    const repulsionStrength = baseRepulsion * Math.max(LAYOUT_MIN_REPULSION_MULTIPLIER, Math.sqrt(nodeCount / LAYOUT_SCALING_DIVISOR));
     
     const attractionStrength = 0.01;
     const dampening = 0.85;
@@ -1106,8 +1109,8 @@ function updateEdges() {
             const nextElement = allChildren[pathIndexInChildren + 1];
             if (nextElement.tagName === 'g' && nextElement.querySelector('text')) {
                 // This is our text group - update its position
-                const labelX = midX + perpX * 0.6;
-                const labelY = midY + perpY * 0.6;
+                const labelX = midX + perpX * EDGE_LABEL_OFFSET_FACTOR;
+                const labelY = midY + perpY * EDGE_LABEL_OFFSET_FACTOR;
                 
                 // Get all text elements and the background rect
                 const texts = nextElement.querySelectorAll('text');
