@@ -35,6 +35,7 @@ A simple web application to consolidate an Excel file into a visual representati
   - Risk impact scatter plot showing system dependencies vs. risk scores
   - Strategic recommendations based on current interface architecture
   - Export functionality to generate printable PDF reports
+  - Export functionality to generate PowerPoint presentations for senior management
 
 ## Required Excel Columns
 
@@ -77,6 +78,7 @@ The Excel file should contain the following columns:
    - View risk impact scatter plot
    - Read strategic recommendations
    - Export report as PDF using the "Export PDF Report" button (opens browser print dialog)
+   - Export report as PowerPoint presentation using the "Export PowerPoint" button (generates .pptx file with professional slides)
 8. **Version Management**:
    - Save current data as a version for comparison
    - Load previously saved versions
@@ -95,12 +97,21 @@ The Excel file should contain the following columns:
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Excel Parsing**: SheetJS (xlsx library)
+- **PowerPoint Export**: PptxGenJS library (v3.12.0)
 - **Visualization**: 
   - Network diagram: Custom SVG-based visualization with force-directed layout algorithm
   - Dashboard charts: Custom SVG bar charts
   - Executive view: Custom SVG scatter plot for risk analysis
 - **No Backend Required**: Runs entirely in the browser
 - **No External Dependencies**: All visualizations use custom SVG implementations for offline compatibility
+- **Export Capabilities**:
+  - PDF export via browser print dialog
+  - PowerPoint export generates professional .pptx presentations with multiple slides including:
+    - Executive title slide
+    - KPI dashboard with visual cards
+    - Critical systems analysis
+    - Risk impact overview
+    - Strategic recommendations
 
 ## Browser Compatibility
 
