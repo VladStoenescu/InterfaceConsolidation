@@ -1364,6 +1364,19 @@ body.light-theme .network-stats {
     box-shadow: 0 8px 24px rgba(0, 212, 255, 0.4);
 }
 
+.export-btn.pptx-btn {
+    background: linear-gradient(135deg, #d24726 0%, #ff6b4a 100%);
+}
+
+.export-btn.pptx-btn:hover {
+    box-shadow: 0 8px 24px rgba(210, 71, 38, 0.4);
+}
+
+.export-buttons-container {
+    display: flex;
+    gap: 10px;
+}
+
 /* Executive KPI Grid */
 .executive-kpi-grid {
     display: grid;
