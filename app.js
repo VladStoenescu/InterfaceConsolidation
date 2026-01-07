@@ -693,9 +693,9 @@ function createNetworkVisualization(nodes, edges) {
         }
         path.setAttribute('marker-end', `url(#${markerId})`);
         
-        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-        title.textContent = edge.tooltip;
-        path.appendChild(title);
+        const pathTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        pathTitle.textContent = edge.tooltip;
+        path.appendChild(pathTitle);
         
         g.appendChild(path);
         
