@@ -189,8 +189,15 @@ function handleMultiFileUpload() {
             // Process and visualize
             processAndVisualize(combinedData);
             
-            // Show connection tabs
-            document.getElementById('connectionTabs').style.display = 'flex';
+            // Show connection tabs only if we have multiple connection types
+            const hasMultipleTypes = 
+                (existingConnectionsData && existingConnectionsData.length > 0 ? 1 : 0) +
+                (targetConnectionsData && targetConnectionsData.length > 0 ? 1 : 0) +
+                (changedConnectionsData && changedConnectionsData.length > 0 ? 1 : 0) > 1;
+            
+            if (hasMultipleTypes) {
+                document.getElementById('connectionTabs').style.display = 'flex';
+            }
             
             hideLoading();
         })
@@ -3315,6 +3322,30 @@ async function exportPowerPointReport() {
 // ==================== CUTOVER TASK LIST FUNCTIONS ====================
 
 /**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Escape CSV value to prevent injection
+ */
+function escapeCsv(value) {
+    if (value == null) return '';
+    const str = String(value);
+    // Check if value needs escaping (contains comma, quote, newline, or starts with special chars)
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r') || 
+        /^[=+\-@]/.test(str)) {
+        // Escape quotes by doubling them and wrap in quotes
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
+/**
  * Task templates for different connection types
  */
 const TASK_TEMPLATES = {
@@ -3433,7 +3464,10 @@ function generateTaskGroup(type, connections, tasks) {
     
     // List connections
     connections.forEach(conn => {
-        html += `<div class="connection-item"><strong>${conn.from}</strong> → <strong>${conn.to}</strong> (${conn.integrationPattern})</div>`;
+        const fromEscaped = escapeHtml(conn.from);
+        const toEscaped = escapeHtml(conn.to);
+        const patternEscaped = escapeHtml(conn.integrationPattern);
+        html += `<div class="connection-item"><strong>${fromEscaped}</strong> → <strong>${toEscaped}</strong> (${patternEscaped})</div>`;
     });
     
     html += `
@@ -3507,14 +3541,14 @@ function exportCutoverTaskList() {
     // Add tasks for new connections
     connectionsByType.new.forEach(conn => {
         TASK_TEMPLATES.new.forEach(task => {
-            csvContent += `"New","${conn.from}","${conn.to}","${conn.integrationPattern}","${task.phase}","${task.name}","${task.duration}","Pending"\n`;
+            csvContent += `${escapeCsv('New')},${escapeCsv(conn.from)},${escapeCsv(conn.to)},${escapeCsv(conn.integrationPattern)},${escapeCsv(task.phase)},${escapeCsv(task.name)},${escapeCsv(task.duration)},${escapeCsv('Pending')}\n`;
         });
     });
     
     // Add tasks for changed connections
     connectionsByType.changed.forEach(conn => {
         TASK_TEMPLATES.changed.forEach(task => {
-            csvContent += `"Changed","${conn.from}","${conn.to}","${conn.integrationPattern}","${task.phase}","${task.name}","${task.duration}","Pending"\n`;
+            csvContent += `${escapeCsv('Changed')},${escapeCsv(conn.from)},${escapeCsv(conn.to)},${escapeCsv(conn.integrationPattern)},${escapeCsv(task.phase)},${escapeCsv(task.name)},${escapeCsv(task.duration)},${escapeCsv('Pending')}\n`;
         });
     });
     
