@@ -2365,6 +2365,9 @@ function calculateDashboardMetrics() {
     });
     const qualityScore = edges.length > 0 ? Math.round((validCount / edges.length) * 100) : 100;
     document.getElementById('kpiValidationScore').textContent = qualityScore + '%';
+    
+    // Generate cutover task list if we have new or changed connections
+    generateCutoverTaskList();
 }
 
 /**
@@ -3307,4 +3310,228 @@ async function exportPowerPointReport() {
     }
 }
 
+
+
+// ==================== CUTOVER TASK LIST FUNCTIONS ====================
+
+/**
+ * Task templates for different connection types
+ */
+const TASK_TEMPLATES = {
+    new: [
+        { name: 'Design interface specification', duration: '2-4 hours', phase: 'Planning' },
+        { name: 'Setup connection configuration', duration: '1-2 hours', phase: 'Setup' },
+        { name: 'Configure authentication and security', duration: '1-2 hours', phase: 'Setup' },
+        { name: 'Implement data mapping/transformation', duration: '4-8 hours', phase: 'Development' },
+        { name: 'Conduct unit testing', duration: '2-4 hours', phase: 'Testing' },
+        { name: 'Perform ping-pong tests (end-to-end)', duration: '2-4 hours', phase: 'Testing' },
+        { name: 'Execute integration testing', duration: '4-6 hours', phase: 'Testing' },
+        { name: 'Validate data quality and completeness', duration: '2-3 hours', phase: 'Validation' },
+        { name: 'Document interface and procedures', duration: '2-3 hours', phase: 'Documentation' },
+        { name: 'Obtain stakeholder sign-off', duration: '1 hour', phase: 'Approval' }
+    ],
+    changed: [
+        { name: 'Review change requirements', duration: '1-2 hours', phase: 'Planning' },
+        { name: 'Backup existing configuration', duration: '30 min', phase: 'Preparation' },
+        { name: 'Update connection configuration', duration: '1-2 hours', phase: 'Update' },
+        { name: 'Modify data mapping if needed', duration: '2-4 hours', phase: 'Update' },
+        { name: 'Test updated connection', duration: '2-3 hours', phase: 'Testing' },
+        { name: 'Perform regression testing', duration: '2-4 hours', phase: 'Testing' },
+        { name: 'Validate backward compatibility', duration: '1-2 hours', phase: 'Validation' },
+        { name: 'Update documentation', duration: '1 hour', phase: 'Documentation' },
+        { name: 'Get change approval', duration: '1 hour', phase: 'Approval' }
+    ],
+    existing: [
+        { name: 'Verify connection is functional', duration: '30 min', phase: 'Validation' },
+        { name: 'Test data flow', duration: '1 hour', phase: 'Testing' },
+        { name: 'Confirm documentation is current', duration: '30 min', phase: 'Documentation' }
+    ]
+};
+
+/**
+ * Generate cutover task list based on connection types
+ */
+function generateCutoverTaskList() {
+    if (!currentData || !currentData.edges) return;
+    
+    // Categorize connections by type
+    const connectionsByType = {
+        new: [],
+        changed: [],
+        existing: []
+    };
+    
+    currentData.edges.forEach(edge => {
+        // Check connection type from flows
+        const connectionTypes = new Set();
+        if (edge.flows) {
+            edge.flows.forEach(flow => {
+                if (flow._connectionType) {
+                    connectionTypes.add(flow._connectionType);
+                }
+            });
+        }
+        
+        // If no connection type specified, assume existing
+        if (connectionTypes.size === 0) {
+            connectionTypes.add('existing');
+        }
+        
+        // Add edge to appropriate categories
+        connectionTypes.forEach(type => {
+            if (connectionsByType[type]) {
+                connectionsByType[type].push(edge);
+            }
+        });
+    });
+    
+    // Check if we have any new or changed connections
+    const hasNewOrChanged = connectionsByType.new.length > 0 || connectionsByType.changed.length > 0;
+    
+    const cutoverSection = document.getElementById('cutoverSection');
+    const cutoverTaskList = document.getElementById('cutoverTaskList');
+    
+    if (!hasNewOrChanged || !cutoverSection || !cutoverTaskList) {
+        if (cutoverSection) cutoverSection.style.display = 'none';
+        return;
+    }
+    
+    // Show cutover section
+    cutoverSection.style.display = 'block';
+    
+    // Build task list HTML
+    let html = '';
+    
+    // New connections
+    if (connectionsByType.new.length > 0) {
+        html += generateTaskGroup('new', connectionsByType.new, TASK_TEMPLATES.new);
+    }
+    
+    // Changed connections
+    if (connectionsByType.changed.length > 0) {
+        html += generateTaskGroup('changed', connectionsByType.changed, TASK_TEMPLATES.changed);
+    }
+    
+    cutoverTaskList.innerHTML = html;
+}
+
+/**
+ * Generate task group HTML for a specific connection type
+ */
+function generateTaskGroup(type, connections, tasks) {
+    const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+    const count = connections.length;
+    
+    let html = `
+        <div class="task-group ${type}">
+            <div class="task-group-header">
+                <div class="task-group-title">${typeLabel} Connections (${count})</div>
+                <div class="task-group-badge ${type}">${typeLabel}</div>
+            </div>
+            <div class="connection-list">
+    `;
+    
+    // List connections
+    connections.forEach(conn => {
+        html += `<div class="connection-item"><strong>${conn.from}</strong> → <strong>${conn.to}</strong> (${conn.integrationPattern})</div>`;
+    });
+    
+    html += `
+            </div>
+            <h4 style="margin-top: 20px; color: var(--text-primary);">Required Tasks:</h4>
+            <ul class="task-list">
+    `;
+    
+    // List tasks
+    tasks.forEach((task, index) => {
+        html += `
+            <li class="task-item">
+                <input type="checkbox" class="task-checkbox" id="task-${type}-${index}" />
+                <label for="task-${type}-${index}" class="task-name">${task.name}</label>
+                <div class="task-meta">
+                    <span class="task-phase">${task.phase}</span>
+                    <span class="task-duration">${task.duration}</span>
+                </div>
+            </li>
+        `;
+    });
+    
+    html += `
+            </ul>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Export cutover task list to CSV
+ */
+function exportCutoverTaskList() {
+    if (!currentData || !currentData.edges) {
+        showStatus('No data available to export', 'error');
+        return;
+    }
+    
+    // Categorize connections
+    const connectionsByType = {
+        new: [],
+        changed: [],
+        existing: []
+    };
+    
+    currentData.edges.forEach(edge => {
+        const connectionTypes = new Set();
+        if (edge.flows) {
+            edge.flows.forEach(flow => {
+                if (flow._connectionType) {
+                    connectionTypes.add(flow._connectionType);
+                }
+            });
+        }
+        
+        if (connectionTypes.size === 0) {
+            connectionTypes.add('existing');
+        }
+        
+        connectionTypes.forEach(type => {
+            if (connectionsByType[type]) {
+                connectionsByType[type].push(edge);
+            }
+        });
+    });
+    
+    // Build CSV content
+    let csvContent = 'Connection Type,From System,To System,Integration Pattern,Task Phase,Task Name,Estimated Duration,Status\n';
+    
+    // Add tasks for new connections
+    connectionsByType.new.forEach(conn => {
+        TASK_TEMPLATES.new.forEach(task => {
+            csvContent += `"New","${conn.from}","${conn.to}","${conn.integrationPattern}","${task.phase}","${task.name}","${task.duration}","Pending"\n`;
+        });
+    });
+    
+    // Add tasks for changed connections
+    connectionsByType.changed.forEach(conn => {
+        TASK_TEMPLATES.changed.forEach(task => {
+            csvContent += `"Changed","${conn.from}","${conn.to}","${conn.integrationPattern}","${task.phase}","${task.name}","${task.duration}","Pending"\n`;
+        });
+    });
+    
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Cutover_Task_List_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showStatus('Cutover task list exported successfully!', 'success');
+}
 

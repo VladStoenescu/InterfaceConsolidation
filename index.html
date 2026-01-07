@@ -365,6 +365,23 @@
                     <div id="validationChart"></div>
                 </div>
             </div>
+
+            <!-- Cutover Tasks Section -->
+            <div class="cutover-section" id="cutoverSection" style="display: none;">
+                <div class="cutover-header">
+                    <h3>Cutover Task List</h3>
+                    <p class="section-description">Tasks required for migrating new and changed connections</p>
+                    <button class="export-btn" onclick="exportCutoverTaskList()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export Task List
+                    </button>
+                </div>
+                <div id="cutoverTaskList" class="cutover-task-list"></div>
+            </div>
         </div>
 
         <!-- Executive Management View -->
