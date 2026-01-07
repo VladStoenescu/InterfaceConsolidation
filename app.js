@@ -28,6 +28,10 @@ const NODE_HEIGHT = 40; // Height of node boxes
 const EDGE_LABEL_LINE_HEIGHT = 13; // Line height for multi-line edge labels
 const EDGE_LABEL_CHAR_WIDTH = 7; // Character width for edge label text
 
+// Constants for force-directed layout algorithm
+const LAYOUT_GRID_RANDOM_OFFSET = 20; // Random offset in pixels for initial grid positioning
+const LAYOUT_SCALING_DIVISOR = 50; // Divisor for scaling iterations and repulsion based on node count
+
 /**
  * Show loading spinner
  */
@@ -872,10 +876,9 @@ function calculateNodePositions(nodes, width, height) {
         const row = Math.floor(index / cols);
         
         // Position node in grid cell with some randomization to avoid perfect alignment
-        const randomOffset = 20;
         positions[node.id] = {
-            x: margin + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * randomOffset,
-            y: margin + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * randomOffset,
+            x: margin + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
+            y: margin + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
             vx: 0,
             vy: 0
         };
@@ -884,11 +887,11 @@ function calculateNodePositions(nodes, width, height) {
     // Force-directed layout parameters - scale with node count for better results
     // More nodes need more iterations and different force parameters
     const baseIterations = 100;
-    const iterations = Math.min(baseIterations + Math.floor(nodeCount / 50), 300);
+    const iterations = Math.min(baseIterations + Math.floor(nodeCount / LAYOUT_SCALING_DIVISOR), 300);
     
     // Scale repulsion strength based on node count
     const baseRepulsion = 8000;
-    const repulsionStrength = baseRepulsion * Math.max(1, Math.sqrt(nodeCount / 50));
+    const repulsionStrength = baseRepulsion * Math.max(1, Math.sqrt(nodeCount / LAYOUT_SCALING_DIVISOR));
     
     const attractionStrength = 0.01;
     const dampening = 0.85;
@@ -1072,9 +1075,15 @@ function updateEdges() {
         };
     });
     
-    // We need to find text groups that correspond to edge labels
-    // They appear after each path element in the DOM
+    // Build a path-to-index map to avoid O(n²) indexOf operations
     const allChildren = Array.from(g.children);
+    const pathIndexMap = new Map();
+    paths.forEach((path, idx) => {
+        const childIndex = allChildren.indexOf(path);
+        if (childIndex >= 0) {
+            pathIndexMap.set(idx, childIndex);
+        }
+    });
     
     let pathIndex = 0;
     currentData.edges.forEach(edge => {
@@ -1091,10 +1100,9 @@ function updateEdges() {
         const pathData = `M ${fromPos.x} ${fromPos.y} Q ${controlX} ${controlY} ${toPos.x} ${toPos.y}`;
         path.setAttribute('d', pathData);
         
-        // Find the corresponding text group (it should be right after the path)
-        // Look for the next g element that contains text elements
-        const pathIndexInChildren = allChildren.indexOf(path);
-        if (pathIndexInChildren >= 0 && pathIndexInChildren + 1 < allChildren.length) {
+        // Find the corresponding text group using the pre-built map
+        const pathIndexInChildren = pathIndexMap.get(pathIndex);
+        if (pathIndexInChildren !== undefined && pathIndexInChildren + 1 < allChildren.length) {
             const nextElement = allChildren[pathIndexInChildren + 1];
             if (nextElement.tagName === 'g' && nextElement.querySelector('text')) {
                 // This is our text group - update its position
