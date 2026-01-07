@@ -8,25 +8,35 @@ A simple web application to consolidate an Excel file into a visual representati
 - **Visual Network Diagram**: Automatically generates an interactive network diagram showing system interfaces
 - **Force-Directed Layout**: Uses a physics-based algorithm to distribute nodes naturally and reduce clutter
 - **Curved Edges**: Connections use curved paths to minimize visual overlap and improve readability
-- **Communication Type Differentiation**: Lines are styled based on the type of communication:
-  - **Batch**: Thick solid red line
-  - **API/Online**: Dashed teal line
+- **Integration Pattern Differentiation**: Lines are styled based on the integration pattern:
+  - **Direct DB Connection**: Thick solid red line
+  - **Web Service / API**: Dashed teal line
   - **Streaming/Real-time**: Dotted light teal line
-  - **Mixed/Hybrid**: Complex dashed coral line
   - **File Transfer**: Dotted purple line
-  - **Message Queue**: Multi-dashed pink line
+  - **Messaging / Message Queue**: Multi-dashed pink line
+  - **UI Interaction**: Dash-dot yellow line
+  - **Batch**: Thick solid red line (legacy support)
+  - **Mixed/Hybrid**: Complex dashed coral line (automatically applied when multiple patterns exist)
   - **Unknown**: Thin gray line (default)
-- **Frequency-Based Differentiation** (fallback): When Communication Type is not specified, lines are styled based on frequency:
+- **Frequency-Based Differentiation** (fallback): When Integration Pattern is not specified, lines are styled based on frequency:
   - **Daily**: Solid blue line (thick)
   - **Weekly**: Dashed green line
   - **Monthly**: Dotted orange line
   - **Yearly**: Solid gray line (thick)
   - **On Demand**: Solid pink line (thin)
   - **Other/Unknown**: Solid gray line (thin)
-- **Data Form Labels**: Each connection shows the type of data exchange (CSV, PDF, TXT, XML, etc.)
+- **Multi-Line Edge Labels**: Each connection displays:
+  - **First line**: Integration Pattern (e.g., "Mixed", "Web Service", "Direct DB Connection")
+  - **Second line**: Data Format(s) (e.g., "CSV, XML", "JSON", "PDF")
+- **Interactive Interface Details**: Click on any connection label to view detailed information including:
+  - Source and target systems
+  - Integration pattern type
+  - All consolidated flows with individual patterns, frequencies, and descriptions
+- **Enhanced Tooltips**: Hover over connections to see comprehensive information about all data flows
+- **Flow Consolidation**: Automatically consolidates multiple flows between the same systems, showing all integration patterns and frequencies
 - **Summary Insights Dashboard**: 
   - KPI cards showing total interfaces, systems, average connections, and data quality score
-  - Visual charts displaying interface distribution by communication type and frequency
+  - Visual charts displaying interface distribution by integration pattern and frequency
   - Top 5 most connected systems analysis
   - Data validation statistics
 - **Executive Management View**:
@@ -43,11 +53,25 @@ The Excel file should contain the following columns:
 
 - **From App Key**: The source system (required)
 - **To App Key**: The target system (required)
-- **Data Form**: The type of data being exchanged (e.g., CSV, PDF, TXT, XML, Other)
+- **Data Form** (or **Data Format**): The type of data being exchanged (e.g., CSV, PDF, TXT, XML, JSON, Other)
 - **Frequency**: How often the data exchange occurs (e.g., Daily, Weekly, Monthly, Yearly, On Demand)
-- **Communication Type**: The method of communication (optional, e.g., Batch, API, Online, Streaming, Real-time, Mixed, Hybrid, File, FTP, SFTP, Queue, MQ, Message)
+- **Integration Pattern** (or **Communication Type**): The method of communication (optional, e.g., Direct DB Connection, Web Service, File Transfer, Messaging, Streaming, UI Interaction, Batch, API, Mixed, Hybrid)
+- **Description**: Detailed description of the interface or data flow (optional)
 
-> **Note**: Column names are case-insensitive. The application will automatically detect variations like "from app key", "FROM APP KEY", "Communication Type", "Comm Type", etc.
+> **Note**: Column names are case-insensitive. The application will automatically detect variations like "from app key", "FROM APP KEY", "Integration Pattern", "Communication Type", "Comm Type", etc.
+
+### Integration Pattern Values
+
+The application supports the following integration pattern types, each displayed with a distinct line style:
+
+- **Direct DB Connection**: Solid thick line - for direct database connections
+- **Web Service / API**: Dashed line - for REST, SOAP, HTTP APIs
+- **Streaming / Real-time**: Dotted line - for real-time data streams
+- **File Transfer**: Dotted line (different pattern) - for FTP, SFTP file transfers
+- **Messaging / Message Queue**: Double dash pattern - for MQ, messaging systems
+- **UI Interaction**: Dash-dot pattern - for user interface integrations
+- **Batch**: Solid thick line - for batch processing
+- **Mixed / Hybrid**: Alternating dash pattern - automatically applied when multiple integration patterns exist for the same interface
 
 ## How to Use
 
@@ -59,9 +83,13 @@ The Excel file should contain the following columns:
    - **Executive View**: High-level strategic view with risk analysis
 4. **Upload your own data**: Click "Choose File" and select an Excel file, then click "Upload and Visualize"
 5. **Network View features**:
-   - Hover over connections to see detailed information
+   - **Hover over connections** to see detailed tooltip information including all consolidated flows
+   - **Click on connections** to view detailed interface descriptions in a modal dialog
+   - Connection labels show:
+     - First line: Integration Pattern (e.g., "Mixed", "Web Service")
+     - Second line: Data Format(s) (e.g., "CSV, XML", "JSON")
    - Use the filter controls to focus on specific types of interfaces:
-     - **Filter by Communication Type**: Show only Batch, API, Streaming, File Transfer, Message Queue, or Mixed interfaces
+     - **Filter by Integration Pattern**: Show only specific pattern types (Direct DB Connection, Web Service/API, Streaming, File Transfer, Messaging, UI Interaction, or Mixed)
      - **Filter by Frequency**: Show only Daily, Weekly, Monthly, Yearly, or On Demand interfaces
      - **Reset Filters**: Clear all filters and show all interfaces
    - Use your mouse to:
@@ -86,12 +114,12 @@ The Excel file should contain the following columns:
 
 ## Example Excel File Structure
 
-| From App Key | To App Key | Data Form | Frequency | Communication Type |
-|--------------|------------|-----------|-----------|-------------------|
-| System A     | System B   | CSV       | Daily     | Batch             |
-| System A     | System C   | XML       | Weekly    | API               |
-| System B     | System C   | PDF       | Monthly   | File              |
-| System D     | System A   | TXT       | On Demand | Streaming         |
+| From App Key | To App Key | Data Form | Frequency | Integration Pattern | Description |
+|--------------|------------|-----------|-----------|---------------------|-------------|
+| System A     | System B   | CSV       | Daily     | Direct DB Connection | Direct database connection for transaction data |
+| System A     | System C   | XML       | Weekly    | Web Service         | RESTful API for data sync |
+| System B     | System C   | PDF       | Monthly   | File Transfer       | Monthly FTP transfer of reports |
+| System D     | System A   | JSON      | On Demand | Streaming           | Real-time event stream |
 
 ## Technical Details
 
