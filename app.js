@@ -1623,33 +1623,46 @@ function compareVersions() {
  * Check if an edge has been modified by comparing its properties deeply
  */
 function isEdgeModified(baseEdge, compareEdge) {
-    // Compare basic properties
-    if (baseEdge.label !== compareEdge.label || 
-        baseEdge.frequency !== compareEdge.frequency ||
-        baseEdge.integrationPattern !== compareEdge.integrationPattern) {
+    // Compare basic properties with null safety
+    if ((baseEdge.label || '') !== (compareEdge.label || '') || 
+        (baseEdge.frequency || '') !== (compareEdge.frequency || '') ||
+        (baseEdge.integrationPattern || '') !== (compareEdge.integrationPattern || '')) {
         return true;
     }
     
-    // Compare flows array if available
-    if (baseEdge.flows && compareEdge.flows) {
+    // Check if flows existence differs
+    const baseHasFlows = baseEdge.flows && Array.isArray(baseEdge.flows) && baseEdge.flows.length > 0;
+    const compareHasFlows = compareEdge.flows && Array.isArray(compareEdge.flows) && compareEdge.flows.length > 0;
+    
+    if (baseHasFlows !== compareHasFlows) {
+        return true;
+    }
+    
+    // Compare flows array if both have flows
+    if (baseHasFlows && compareHasFlows) {
         if (baseEdge.flows.length !== compareEdge.flows.length) {
             return true;
         }
         
-        // Create a comparable representation of flows
-        const baseFlowsStr = JSON.stringify(baseEdge.flows.map(f => ({
-            dataForm: f.dataForm,
-            frequency: f.frequency,
-            integrationPattern: f.integrationPattern,
-            description: f.description
-        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+        // Helper function to create normalized flow object
+        const normalizeFlow = (f) => ({
+            dataForm: f.dataForm || '',
+            frequency: f.frequency || '',
+            integrationPattern: f.integrationPattern || '',
+            description: f.description || ''
+        });
         
-        const compareFlowsStr = JSON.stringify(compareEdge.flows.map(f => ({
-            dataForm: f.dataForm,
-            frequency: f.frequency,
-            integrationPattern: f.integrationPattern,
-            description: f.description
-        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+        // Create comparable representations of flows
+        const normalizeAndSort = (flows) => {
+            return flows.map(normalizeFlow).sort((a, b) => {
+                const aStr = JSON.stringify(a);
+                const bStr = JSON.stringify(b);
+                return aStr.localeCompare(bStr);
+            });
+        };
+        
+        const baseFlowsStr = JSON.stringify(normalizeAndSort(baseEdge.flows));
+        const compareFlowsStr = JSON.stringify(normalizeAndSort(compareEdge.flows));
         
         if (baseFlowsStr !== compareFlowsStr) {
             return true;
