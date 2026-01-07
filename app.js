@@ -293,6 +293,9 @@ function switchConnectionTab(tabType) {
     // Update visualization
     createNetworkVisualization(filteredNodes, filteredEdges);
     
+    // Update legend for the filtered view
+    buildDynamicLegend(filteredEdges);
+    
     // Update stats
     showStatus(`Showing ${filteredEdges.length} ${tabType === 'all' ? '' : tabType + ' '}connections`, 'info');
 }
