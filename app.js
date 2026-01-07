@@ -187,7 +187,8 @@ function extractNodesAndEdges(data) {
         }
         
         // Create unique key for this edge (from-to pair)
-        const edgeKey = `${fromApp}||${toApp}`;
+        // Using a more unique separator to avoid conflicts with application names
+        const edgeKey = `${fromApp}\u0000${toApp}`;
         
         // Consolidate edges with same from-to pair
         if (!edgeMap.has(edgeKey)) {
@@ -218,9 +219,14 @@ function extractNodesAndEdges(data) {
         
         // Collect unique communication types
         const commTypes = new Set();
+        const commTypeMap = new Map(); // Map to store original casing
         flows.forEach(flow => {
             if (flow.communicationType && flow.communicationType !== 'Unknown') {
-                commTypes.add(flow.communicationType.toLowerCase());
+                const lowerType = flow.communicationType.toLowerCase();
+                commTypes.add(lowerType);
+                if (!commTypeMap.has(lowerType)) {
+                    commTypeMap.set(lowerType, flow.communicationType);
+                }
             }
         });
         
@@ -230,8 +236,9 @@ function extractNodesAndEdges(data) {
             // Multiple communication types = Mixed
             consolidatedCommType = 'Mixed';
         } else if (commTypes.size === 1) {
-            // Single communication type
-            consolidatedCommType = flows[0].communicationType;
+            // Single communication type - use the original casing from the first occurrence
+            const lowerType = [...commTypes][0];
+            consolidatedCommType = commTypeMap.get(lowerType);
         } else {
             // No valid communication type found
             consolidatedCommType = 'Unknown';
