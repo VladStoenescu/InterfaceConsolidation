@@ -25,6 +25,8 @@ const DEFAULT_TEXT_WIDTH = 40; // Default width when getBBox unavailable
 const DEFAULT_TEXT_HEIGHT = 15; // Default height when getBBox unavailable
 const NODE_PADDING = 10; // Padding inside node boxes
 const NODE_HEIGHT = 40; // Height of node boxes
+const EDGE_LABEL_LINE_HEIGHT = 13; // Line height for multi-line edge labels
+const EDGE_LABEL_CHAR_WIDTH = 7; // Character width for edge label text
 
 /**
  * Show loading spinner
@@ -418,6 +420,11 @@ function getIntegrationPatternStyle(integrationPattern) {
 
 /**
  * Show interface description in a modal
+ * @param {Object} edge - The edge object containing interface information
+ * @param {string} edge.from - Source system name
+ * @param {string} edge.to - Target system name
+ * @param {string} edge.integrationPattern - Overall integration pattern for the interface
+ * @param {Array} edge.flows - Array of flow objects with individual details
  */
 function showInterfaceDescription(edge) {
     // Create or get modal
@@ -710,9 +717,8 @@ function createNetworkVisualization(nodes, edges) {
         const textGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         
         // Calculate total height needed
-        const lineHeight = 13;
-        const totalHeight = labelLines.length * lineHeight;
-        const startY = labelY - (totalHeight / 2) + lineHeight / 2;
+        const totalHeight = labelLines.length * EDGE_LABEL_LINE_HEIGHT;
+        const startY = labelY - (totalHeight / 2) + EDGE_LABEL_LINE_HEIGHT / 2;
         
         // Create background rect (will be sized after text is rendered)
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -727,7 +733,7 @@ function createNetworkVisualization(nodes, edges) {
         labelLines.forEach((line, index) => {
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('x', labelX);
-            text.setAttribute('y', startY + (index * lineHeight));
+            text.setAttribute('y', startY + (index * EDGE_LABEL_LINE_HEIGHT));
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('font-size', '11');
             text.setAttribute('font-weight', index === 0 ? '700' : '600'); // First line (pattern) bolder
@@ -737,13 +743,13 @@ function createNetworkVisualization(nodes, edges) {
             textGroup.appendChild(text);
             
             // Track max width for background
-            const estimatedWidth = line.length * 7;
+            const estimatedWidth = line.length * EDGE_LABEL_CHAR_WIDTH;
             if (estimatedWidth > maxWidth) maxWidth = estimatedWidth;
         });
         
         // Set background dimensions
         textBg.setAttribute('x', labelX - maxWidth/2 - TEXT_BG_PADDING);
-        textBg.setAttribute('y', startY - lineHeight + TEXT_BG_PADDING);
+        textBg.setAttribute('y', startY - EDGE_LABEL_LINE_HEIGHT + TEXT_BG_PADDING);
         textBg.setAttribute('width', maxWidth + TEXT_BG_PADDING * 2);
         textBg.setAttribute('height', totalHeight + TEXT_BG_PADDING * 2);
         
