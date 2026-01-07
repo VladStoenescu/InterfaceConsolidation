@@ -1394,7 +1394,8 @@ function loadSampleData() {
  * Create a unique key for an edge
  */
 function createEdgeKey(edge) {
-    return `${edge.from}||${edge.to}`;
+    // Use the same separator as in extractNodesAndEdges for consistency
+    return `${edge.from}\u0000${edge.to}`;
 }
 
 /**
@@ -1544,8 +1545,17 @@ function handleVersionSelection() {
     // Hide comparison results if visible
     document.getElementById('comparisonResults').style.display = 'none';
     
-    // Visualize the version
-    createNetworkVisualization(currentData.nodes, currentData.edges);
+    // Refresh the current view based on which view is active
+    if (currentView === 'network') {
+        createNetworkVisualization(currentData.nodes, currentData.edges);
+        // Update network stats
+        updateNetworkStats(currentData.nodes, currentData.edges);
+    } else if (currentView === 'dashboard') {
+        initializeDashboard();
+    } else if (currentView === 'executive') {
+        initializeExecutiveView();
+    }
+    
     showStatus(`Loaded version: ${version.name}`, 'success');
 }
 
@@ -1610,6 +1620,46 @@ function compareVersions() {
 }
 
 /**
+ * Check if an edge has been modified by comparing its properties deeply
+ */
+function isEdgeModified(baseEdge, compareEdge) {
+    // Compare basic properties
+    if (baseEdge.label !== compareEdge.label || 
+        baseEdge.frequency !== compareEdge.frequency ||
+        baseEdge.integrationPattern !== compareEdge.integrationPattern) {
+        return true;
+    }
+    
+    // Compare flows array if available
+    if (baseEdge.flows && compareEdge.flows) {
+        if (baseEdge.flows.length !== compareEdge.flows.length) {
+            return true;
+        }
+        
+        // Create a comparable representation of flows
+        const baseFlowsStr = JSON.stringify(baseEdge.flows.map(f => ({
+            dataForm: f.dataForm,
+            frequency: f.frequency,
+            integrationPattern: f.integrationPattern,
+            description: f.description
+        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+        
+        const compareFlowsStr = JSON.stringify(compareEdge.flows.map(f => ({
+            dataForm: f.dataForm,
+            frequency: f.frequency,
+            integrationPattern: f.integrationPattern,
+            description: f.description
+        })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+        
+        if (baseFlowsStr !== compareFlowsStr) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
  * Calculate the difference between two versions
  */
 function calculateVersionDifference(baseData, compareData) {
@@ -1657,7 +1707,7 @@ function calculateVersionDifference(baseData, compareData) {
         } else {
             // Check if edge was modified
             const baseEdge = baseEdgeMap.get(key);
-            if (baseEdge.label !== edge.label || baseEdge.frequency !== edge.frequency) {
+            if (isEdgeModified(baseEdge, edge)) {
                 diff.modifiedEdges.push({
                     base: baseEdge,
                     compare: edge
