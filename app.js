@@ -2,7 +2,7 @@
 let currentData = null;
 let filteredData = null; // Store filtered data
 let activeFilters = {
-    communicationType: 'all',
+    integrationPattern: 'all',
     frequency: 'all'
 };
 let isDragging = false;
@@ -131,21 +131,21 @@ function processAndVisualize(data) {
 /**
  * Update network statistics display
  * @param {Array} nodes - Array of network node objects with id and label properties
- * @param {Array} edges - Array of network edge objects with communication type information
+ * @param {Array} edges - Array of network edge objects with integration pattern information
  */
 function updateNetworkStats(nodes, edges) {
-    // Count unique communication types
-    const commTypes = new Set();
+    // Count unique integration patterns
+    const patterns = new Set();
     edges.forEach(edge => {
-        if (edge.communicationType && edge.communicationType.toLowerCase() !== 'unknown') {
-            commTypes.add(edge.communicationType);
+        if (edge.integrationPattern && edge.integrationPattern.toLowerCase() !== 'unknown') {
+            patterns.add(edge.integrationPattern);
         }
     });
     
     // Update stats
     document.getElementById('statSystems').textContent = nodes.length;
     document.getElementById('statInterfaces').textContent = edges.length;
-    document.getElementById('statTypes').textContent = commTypes.size;
+    document.getElementById('statTypes').textContent = patterns.size;
     
     // Show stats section
     document.getElementById('networkStats').style.display = 'flex';
@@ -164,7 +164,9 @@ function extractNodesAndEdges(data) {
         const toApp = getFieldValue(row, ['To App Key', 'to app key', 'TO APP KEY', 'ToAppKey', 'Target', 'Destination']);
         const dataForm = getFieldValue(row, ['Data Form', 'data form', 'DATA FORM', 'DataForm', 'Format', 'Type']) || 'Unknown';
         const frequency = getFieldValue(row, ['Frequency', 'frequency', 'FREQUENCY', 'Freq']) || 'Unknown';
-        const communicationType = getFieldValue(row, ['Communication Type', 'communication type', 'COMMUNICATION TYPE', 'CommunicationType', 'Comm Type', 'Type', 'Mode']) || 'Unknown';
+        // Support both "Integration Pattern" (new) and "Communication Type" (legacy)
+        const integrationPattern = getFieldValue(row, ['Integration Pattern', 'integration pattern', 'INTEGRATION PATTERN', 'IntegrationPattern', 'Communication Type', 'communication type', 'COMMUNICATION TYPE', 'CommunicationType', 'Comm Type', 'Type', 'Mode']) || 'Unknown';
+        const description = getFieldValue(row, ['Description', 'description', 'DESCRIPTION', 'Desc', 'desc']) || '';
         
         // Skip rows without required fields
         if (!fromApp || !toApp) {
@@ -199,7 +201,8 @@ function extractNodesAndEdges(data) {
                 flows: [{
                     dataForm: dataForm,
                     frequency: frequency,
-                    communicationType: communicationType
+                    integrationPattern: integrationPattern,
+                    description: description
                 }]
             });
         } else {
@@ -207,7 +210,8 @@ function extractNodesAndEdges(data) {
             edgeMap.get(edgeKey).flows.push({
                 dataForm: dataForm,
                 frequency: frequency,
-                communicationType: communicationType
+                integrationPattern: integrationPattern,
+                description: description
             });
         }
     });
@@ -217,55 +221,66 @@ function extractNodesAndEdges(data) {
     edgeMap.forEach((edgeData) => {
         const flows = edgeData.flows;
         
-        // Collect unique communication types
-        const commTypes = new Set();
-        const commTypeMap = new Map(); // Map to store original casing
+        // Collect unique integration patterns
+        const integrationPatterns = new Set();
+        const patternMap = new Map(); // Map to store original casing
         flows.forEach(flow => {
-            if (flow.communicationType && flow.communicationType !== 'Unknown') {
-                const lowerType = flow.communicationType.toLowerCase();
-                commTypes.add(lowerType);
-                if (!commTypeMap.has(lowerType)) {
-                    commTypeMap.set(lowerType, flow.communicationType);
+            if (flow.integrationPattern && flow.integrationPattern !== 'Unknown') {
+                const lowerPattern = flow.integrationPattern.toLowerCase();
+                integrationPatterns.add(lowerPattern);
+                if (!patternMap.has(lowerPattern)) {
+                    patternMap.set(lowerPattern, flow.integrationPattern);
                 }
             }
         });
         
-        // Determine consolidated communication type
-        let consolidatedCommType;
-        if (commTypes.size > 1) {
-            // Multiple communication types = Mixed
-            consolidatedCommType = 'Mixed';
-        } else if (commTypes.size === 1) {
-            // Single communication type - use the original casing from the first occurrence
-            const lowerType = [...commTypes][0];
-            consolidatedCommType = commTypeMap.get(lowerType);
+        // Determine consolidated integration pattern
+        let consolidatedPattern;
+        if (integrationPatterns.size > 1) {
+            // Multiple integration patterns = Mixed
+            consolidatedPattern = 'Mixed';
+        } else if (integrationPatterns.size === 1) {
+            // Single integration pattern - use the original casing from the first occurrence
+            const lowerPattern = [...integrationPatterns][0];
+            consolidatedPattern = patternMap.get(lowerPattern);
         } else {
-            // No valid communication type found
-            consolidatedCommType = 'Unknown';
+            // No valid integration pattern found
+            consolidatedPattern = 'Unknown';
         }
         
         // Collect unique data forms and frequencies for label
         const dataForms = [...new Set(flows.map(f => f.dataForm))].filter(d => d !== 'Unknown');
         const frequencies = [...new Set(flows.map(f => f.frequency))].filter(f => f !== 'Unknown');
         
-        // Create consolidated label
-        const label = dataForms.length > 0 ? dataForms.join(', ') : 'Unknown';
+        // Collect all descriptions
+        const descriptions = flows.map(f => f.description).filter(d => d && d.trim() !== '');
+        
+        // Create label showing integration pattern and data format
+        const patternLabel = consolidatedPattern !== 'Unknown' ? consolidatedPattern : '';
+        const dataLabel = dataForms.length > 0 ? dataForms.join(', ') : '';
+        const label = patternLabel && dataLabel ? `${patternLabel}\n${dataLabel}` : (patternLabel || dataLabel || 'Unknown');
         
         // Create detailed tooltip with all flows
         let tooltip = `From: ${edgeData.from}\nTo: ${edgeData.to}\n`;
-        tooltip += `Communication Type: ${consolidatedCommType}\n`;
+        tooltip += `Integration Pattern: ${consolidatedPattern}\n`;
         if (flows.length > 1) {
             tooltip += `\nConsolidated from ${flows.length} information flows:\n`;
             flows.forEach((flow, idx) => {
                 tooltip += `\n  Flow ${idx + 1}:\n`;
-                tooltip += `    Data Form: ${flow.dataForm}\n`;
-                tooltip += `    Frequency: ${flow.frequency}\n`;
-                tooltip += `    Communication Type: ${flow.communicationType}`;
+                tooltip += `    Integration Pattern: ${flow.integrationPattern}\n`;
+                tooltip += `    Data Format: ${flow.dataForm}\n`;
+                tooltip += `    Frequency: ${flow.frequency}`;
+                if (flow.description) {
+                    tooltip += `\n    Description: ${flow.description}`;
+                }
                 if (idx < flows.length - 1) tooltip += '\n';
             });
         } else {
-            tooltip += `Data Form: ${flows[0].dataForm}\n`;
+            tooltip += `Data Format: ${flows[0].dataForm}\n`;
             tooltip += `Frequency: ${flows[0].frequency}`;
+            if (flows[0].description) {
+                tooltip += `\nDescription: ${flows[0].description}`;
+            }
         }
         
         edges.push({
@@ -273,10 +288,11 @@ function extractNodesAndEdges(data) {
             to: edgeData.to,
             label: label,
             frequency: frequencies.length > 0 ? frequencies.join(', ') : 'Unknown',
-            communicationType: consolidatedCommType,
+            integrationPattern: consolidatedPattern,
             tooltip: tooltip,
             flowCount: flows.length,
-            flows: flows // Store all flows for reference
+            flows: flows, // Store all flows for reference
+            descriptions: descriptions // Store descriptions for click events
         });
     });
     
@@ -306,13 +322,13 @@ function getFieldValue(row, possibleKeys) {
 }
 
 /**
- * Get edge styling based on communication type
+ * Get edge styling based on integration pattern
  */
-function getCommunicationTypeStyle(communicationType) {
-    const type = communicationType.toLowerCase();
+function getIntegrationPatternStyle(integrationPattern) {
+    const pattern = integrationPattern.toLowerCase();
     
-    // Batch processing - thick solid line
-    if (type.includes('batch')) {
+    // Direct DB Connection - solid thick line
+    if (pattern.includes('direct') && pattern.includes('db')) {
         return {
             color: '#FF6B6B',
             width: 4,
@@ -321,38 +337,8 @@ function getCommunicationTypeStyle(communicationType) {
         };
     }
     
-    // API/Online - dashed line
-    if (type.includes('api') || type.includes('online') || type.includes('rest') || type.includes('http')) {
-        return {
-            color: '#4ECDC4',
-            width: 3,
-            dasharray: '8,4',
-            opacity: 1
-        };
-    }
-    
-    // Streaming - animated dashed line (dotted)
-    if (type.includes('stream') || type.includes('real-time') || type.includes('realtime')) {
-        return {
-            color: '#95E1D3',
-            width: 3,
-            dasharray: '3,3',
-            opacity: 1
-        };
-    }
-    
-    // Mixed/Hybrid - alternating dash pattern
-    if (type.includes('mixed') || type.includes('hybrid')) {
-        return {
-            color: '#F38181',
-            width: 3,
-            dasharray: '10,5,3,5',
-            opacity: 1
-        };
-    }
-    
-    // File Transfer - thick dotted
-    if (type.includes('file') || type.includes('ftp') || type.includes('sftp')) {
+    // File Transfer - dotted line
+    if (pattern.includes('file') || pattern.includes('ftp') || pattern.includes('sftp')) {
         return {
             color: '#AA96DA',
             width: 3,
@@ -361,8 +347,8 @@ function getCommunicationTypeStyle(communicationType) {
         };
     }
     
-    // Message Queue - double dash
-    if (type.includes('queue') || type.includes('mq') || type.includes('message')) {
+    // Messaging / Message Queue - double dash
+    if (pattern.includes('messag') || pattern.includes('queue') || pattern.includes('mq')) {
         return {
             color: '#FCBAD3',
             width: 3,
@@ -371,13 +357,130 @@ function getCommunicationTypeStyle(communicationType) {
         };
     }
     
-    // Default/Unknown - thin gray line
+    // Streaming / Real-time - animated dotted line
+    if (pattern.includes('stream') || pattern.includes('real-time') || pattern.includes('realtime')) {
+        return {
+            color: '#95E1D3',
+            width: 3,
+            dasharray: '3,3',
+            opacity: 1
+        };
+    }
+    
+    // UI Interaction - dash-dot pattern
+    if (pattern.includes('ui') || pattern.includes('user interface') || pattern.includes('interaction')) {
+        return {
+            color: '#FFD93D',
+            width: 3,
+            dasharray: '8,3,2,3',
+            opacity: 1
+        };
+    }
+    
+    // Web Service / API - dashed line
+    if (pattern.includes('web') || pattern.includes('service') || pattern.includes('api') || pattern.includes('rest') || pattern.includes('soap') || pattern.includes('http')) {
+        return {
+            color: '#4ECDC4',
+            width: 3,
+            dasharray: '8,4',
+            opacity: 1
+        };
+    }
+    
+    // Batch processing - thick solid line (legacy support)
+    if (pattern.includes('batch')) {
+        return {
+            color: '#FF6B6B',
+            width: 4,
+            dasharray: '',
+            opacity: 1
+        };
+    }
+    
+    // Mixed/Hybrid - alternating dash pattern
+    if (pattern.includes('mixed') || pattern.includes('hybrid')) {
+        return {
+            color: '#F38181',
+            width: 3,
+            dasharray: '10,5,3,5',
+            opacity: 1
+        };
+    }
+    
+    // Other / Unknown / Empty - thin gray line
     return {
         color: '#999999',
         width: 2,
         dasharray: '',
         opacity: 0.6
     };
+}
+
+/**
+ * Show interface description in a modal
+ */
+function showInterfaceDescription(edge) {
+    // Create or get modal
+    let modal = document.getElementById('descriptionModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'descriptionModal';
+        modal.className = 'modal';
+        modal.style.display = 'none';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-btn';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = () => { modal.style.display = 'none'; };
+        
+        const modalBody = document.createElement('div');
+        modalBody.id = 'descriptionModalBody';
+        
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(modalBody);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+    }
+    
+    // Populate modal content
+    const modalBody = document.getElementById('descriptionModalBody');
+    let html = `<h2>Interface Details</h2>`;
+    html += `<div class="interface-info">`;
+    html += `<p><strong>From:</strong> ${edge.from}</p>`;
+    html += `<p><strong>To:</strong> ${edge.to}</p>`;
+    html += `<p><strong>Integration Pattern:</strong> ${edge.integrationPattern}</p>`;
+    html += `</div>`;
+    
+    if (edge.flows.length > 1) {
+        html += `<h3>Information Flows (${edge.flows.length})</h3>`;
+        edge.flows.forEach((flow, idx) => {
+            html += `<div class="flow-detail">`;
+            html += `<h4>Flow ${idx + 1}</h4>`;
+            html += `<p><strong>Integration Pattern:</strong> ${flow.integrationPattern}</p>`;
+            html += `<p><strong>Data Format:</strong> ${flow.dataForm}</p>`;
+            html += `<p><strong>Frequency:</strong> ${flow.frequency}</p>`;
+            if (flow.description) {
+                html += `<p><strong>Description:</strong> ${flow.description}</p>`;
+            }
+            html += `</div>`;
+        });
+    } else {
+        const flow = edge.flows[0];
+        html += `<h3>Flow Details</h3>`;
+        html += `<div class="flow-detail">`;
+        html += `<p><strong>Data Format:</strong> ${flow.dataForm}</p>`;
+        html += `<p><strong>Frequency:</strong> ${flow.frequency}</p>`;
+        if (flow.description) {
+            html += `<p><strong>Description:</strong> ${flow.description}</p>`;
+        }
+        html += `</div>`;
+    }
+    
+    modalBody.innerHTML = html;
+    modal.style.display = 'flex';
 }
 
 /**
@@ -561,11 +664,11 @@ function createNetworkVisualization(nodes, edges) {
         
         if (!fromPos || !toPos) return;
         
-        // Use communication type for styling if available, otherwise fall back to frequency
-        const hasValidCommType = edge.communicationType && 
-            edge.communicationType.toLowerCase() !== 'unknown';
-        const style = hasValidCommType
-            ? getCommunicationTypeStyle(edge.communicationType)
+        // Use integration pattern for styling if available, otherwise fall back to frequency
+        const hasValidPattern = edge.integrationPattern && 
+            edge.integrationPattern.toLowerCase() !== 'unknown';
+        const style = hasValidPattern
+            ? getIntegrationPatternStyle(edge.integrationPattern)
             : getEdgeStyle(edge.frequency);
         
         // Create arrow marker
@@ -600,35 +703,82 @@ function createNetworkVisualization(nodes, edges) {
         const labelX = midX + perpX * 0.6;
         const labelY = midY + perpY * 0.6;
         
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', labelX);
-        text.setAttribute('y', labelY);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('font-size', '11');
-        text.setAttribute('font-weight', '600');
-        text.setAttribute('fill', '#ffffff');
-        text.setAttribute('filter', 'url(#textGlow)');
-        text.textContent = edge.label;
+        // Split label into lines (integration pattern and data format)
+        const labelLines = edge.label.split('\n');
         
+        // Create text group for multi-line support
+        const textGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        // Calculate total height needed
+        const lineHeight = 13;
+        const totalHeight = labelLines.length * lineHeight;
+        const startY = labelY - (totalHeight / 2) + lineHeight / 2;
+        
+        // Create background rect (will be sized after text is rendered)
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        // Use default dimensions initially (getBBox needs the element to be in DOM)
-        const bbox = { x: labelX - DEFAULT_TEXT_WIDTH/2, y: labelY - DEFAULT_TEXT_HEIGHT, width: DEFAULT_TEXT_WIDTH, height: DEFAULT_TEXT_HEIGHT };
-        // Update with actual dimensions after a delay to allow DOM to render
-        setTimeout(() => {
-            const bbox = text.getBBox();
-            textBg.setAttribute('x', bbox.x - TEXT_BG_PADDING);
-            textBg.setAttribute('y', bbox.y - TEXT_BG_PADDING);
-            textBg.setAttribute('width', bbox.width + TEXT_BG_PADDING * 2);
-            textBg.setAttribute('height', bbox.height + TEXT_BG_PADDING * 2);
-        }, TEXT_MEASUREMENT_DELAY);
-        
         textBg.setAttribute('fill', 'rgba(10, 14, 39, 0.85)');
         textBg.setAttribute('stroke', 'rgba(0, 212, 255, 0.3)');
         textBg.setAttribute('stroke-width', '1');
         textBg.setAttribute('rx', '4');
         
-        g.appendChild(textBg);
-        g.appendChild(text);
+        let maxWidth = 0;
+        
+        // Create each line of text
+        labelLines.forEach((line, index) => {
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', labelX);
+            text.setAttribute('y', startY + (index * lineHeight));
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('font-weight', index === 0 ? '700' : '600'); // First line (pattern) bolder
+            text.setAttribute('fill', '#ffffff');
+            text.setAttribute('filter', 'url(#textGlow)');
+            text.textContent = line;
+            textGroup.appendChild(text);
+            
+            // Track max width for background
+            const estimatedWidth = line.length * 7;
+            if (estimatedWidth > maxWidth) maxWidth = estimatedWidth;
+        });
+        
+        // Set background dimensions
+        textBg.setAttribute('x', labelX - maxWidth/2 - TEXT_BG_PADDING);
+        textBg.setAttribute('y', startY - lineHeight + TEXT_BG_PADDING);
+        textBg.setAttribute('width', maxWidth + TEXT_BG_PADDING * 2);
+        textBg.setAttribute('height', totalHeight + TEXT_BG_PADDING * 2);
+        
+        // Update with actual dimensions after a delay to allow DOM to render
+        setTimeout(() => {
+            const texts = textGroup.querySelectorAll('text');
+            let actualMaxWidth = 0;
+            texts.forEach(text => {
+                try {
+                    const bbox = text.getBBox();
+                    if (bbox.width > actualMaxWidth) actualMaxWidth = bbox.width;
+                } catch(e) {
+                    // getBBox may fail in some contexts
+                }
+            });
+            if (actualMaxWidth > 0) {
+                textBg.setAttribute('x', labelX - actualMaxWidth/2 - TEXT_BG_PADDING);
+                textBg.setAttribute('width', actualMaxWidth + TEXT_BG_PADDING * 2);
+            }
+        }, TEXT_MEASUREMENT_DELAY);
+        
+        textGroup.insertBefore(textBg, textGroup.firstChild);
+        
+        // Add tooltip to the entire group
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = edge.tooltip;
+        textGroup.appendChild(title);
+        
+        // Make edge clickable if it has descriptions
+        if (edge.descriptions && edge.descriptions.length > 0) {
+            textGroup.style.cursor = 'pointer';
+            textGroup.addEventListener('click', () => showInterfaceDescription(edge));
+        }
+        
+        g.appendChild(textGroup);
     });
     
     // Draw nodes
@@ -947,38 +1097,42 @@ function showStatus(message, type) {
 function handleFilterChange() {
     if (!currentData) return;
     
-    const commTypeFilter = document.getElementById('commTypeFilter').value;
+    const patternFilter = document.getElementById('commTypeFilter').value;
     const frequencyFilter = document.getElementById('frequencyFilter').value;
     
-    activeFilters.communicationType = commTypeFilter;
+    activeFilters.integrationPattern = patternFilter;
     activeFilters.frequency = frequencyFilter;
     
     applyFilters();
 }
 
 /**
- * Check if a communication type matches the filter
+ * Check if an integration pattern matches the filter
  */
-function matchesCommunicationType(commType, filter) {
-    if (!commType) return false;
-    const type = commType.toLowerCase();
+function matchesIntegrationPattern(pattern, filter) {
+    if (!pattern) return false;
+    const p = pattern.toLowerCase();
     
     // More precise matching based on filter value
     switch(filter) {
         case 'batch':
-            return type === 'batch';
+            return p === 'batch';
         case 'api':
-            return type === 'api' || type === 'online' || type.includes('rest') || type.includes('http');
+            return p.includes('web') || p.includes('service') || p.includes('api') || p.includes('rest') || p.includes('soap');
         case 'streaming':
-            return type.includes('stream') || type.includes('real-time') || type.includes('realtime');
+            return p.includes('stream') || p.includes('real-time') || p.includes('realtime');
         case 'file':
-            return type === 'file' || type.includes('ftp') || type.includes('sftp');
+            return p.includes('file') || p.includes('ftp') || p.includes('sftp');
         case 'queue':
-            return type.includes('queue') || type === 'mq' || type.includes('message');
+            return p.includes('queue') || p.includes('mq') || p.includes('messag');
         case 'mixed':
-            return type === 'mixed' || type === 'hybrid';
+            return p === 'mixed' || p === 'hybrid';
+        case 'db':
+            return p.includes('db') || p.includes('database') || p.includes('direct');
+        case 'ui':
+            return p.includes('ui') || p.includes('interaction') || p.includes('user interface');
         default:
-            return type.includes(filter);
+            return p.includes(filter);
     }
 }
 
@@ -1014,10 +1168,10 @@ function applyFilters() {
     
     let filteredEdges = currentData.edges;
     
-    // Filter by communication type
-    if (activeFilters.communicationType !== 'all') {
+    // Filter by integration pattern
+    if (activeFilters.integrationPattern !== 'all') {
         filteredEdges = filteredEdges.filter(edge => 
-            matchesCommunicationType(edge.communicationType, activeFilters.communicationType)
+            matchesIntegrationPattern(edge.integrationPattern, activeFilters.integrationPattern)
         );
     }
     
@@ -1055,7 +1209,7 @@ function applyFilters() {
 function resetFilters() {
     document.getElementById('commTypeFilter').value = 'all';
     document.getElementById('frequencyFilter').value = 'all';
-    activeFilters.communicationType = 'all';
+    activeFilters.integrationPattern = 'all';
     activeFilters.frequency = 'all';
     
     if (currentData) {
@@ -1101,43 +1255,49 @@ function loadSampleData() {
             "To App Key": "Data Warehouse",
             "Data Form": "CSV",
             "Frequency": "Daily",
-            "Communication Type": "Batch"
+            "Integration Pattern": "Batch",
+            "Description": "Daily customer data export for reporting"
         },
-        // Duplicate flow: CRM System -> Data Warehouse with different communication type (should consolidate to Mixed)
+        // Duplicate flow: CRM System -> Data Warehouse with different integration pattern (should consolidate to Mixed)
         {
             "From App Key": "CRM System",
             "To App Key": "Data Warehouse",
             "Data Form": "XML",
             "Frequency": "Weekly",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "Weekly sales data sync via API"
         },
         {
             "From App Key": "CRM System",
             "To App Key": "Email Service",
             "Data Form": "XML",
             "Frequency": "On Demand",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "On-demand email notifications"
         },
         {
             "From App Key": "ERP System",
             "To App Key": "Data Warehouse",
             "Data Form": "CSV",
             "Frequency": "Daily",
-            "Communication Type": "Batch"
+            "Integration Pattern": "Direct DB Connection",
+            "Description": "Direct database connection for transaction data"
         },
         {
             "From App Key": "ERP System",
             "To App Key": "Reporting Tool",
             "Data Form": "XML",
             "Frequency": "Weekly",
-            "Communication Type": "File"
+            "Integration Pattern": "File Transfer",
+            "Description": "Weekly FTP transfer of reports"
         },
         {
             "From App Key": "Payment Gateway",
             "To App Key": "CRM System",
             "Data Form": "JSON",
             "Frequency": "Daily",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "Real-time payment notifications"
         },
         // Duplicate flow: Payment Gateway -> CRM System with different data form (should consolidate)
         {
@@ -1145,64 +1305,73 @@ function loadSampleData() {
             "To App Key": "CRM System",
             "Data Form": "XML",
             "Frequency": "Weekly",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "Weekly payment summary reports"
         },
         {
             "From App Key": "Payment Gateway",
             "To App Key": "Audit System",
             "Data Form": "TXT",
             "Frequency": "Monthly",
-            "Communication Type": "Batch"
+            "Integration Pattern": "File Transfer",
+            "Description": "Monthly audit logs via SFTP"
         },
         {
             "From App Key": "Mobile App",
             "To App Key": "API Gateway",
             "Data Form": "JSON",
             "Frequency": "Daily",
-            "Communication Type": "Streaming"
+            "Integration Pattern": "Streaming",
+            "Description": "Real-time user activity stream"
         },
-        // Duplicate flow: Mobile App -> API Gateway with different communication type (should consolidate to Mixed)
+        // Duplicate flow: Mobile App -> API Gateway with different integration pattern (should consolidate to Mixed)
         {
             "From App Key": "Mobile App",
             "To App Key": "API Gateway",
             "Data Form": "XML",
             "Frequency": "Weekly",
-            "Communication Type": "Batch"
+            "Integration Pattern": "Batch",
+            "Description": "Weekly analytics batch upload"
         },
         {
             "From App Key": "API Gateway",
             "To App Key": "CRM System",
             "Data Form": "JSON",
             "Frequency": "Daily",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "API-based customer data sync"
         },
         {
             "From App Key": "API Gateway",
             "To App Key": "ERP System",
             "Data Form": "XML",
             "Frequency": "Daily",
-            "Communication Type": "API"
+            "Integration Pattern": "Web Service",
+            "Description": "RESTful API for order processing"
         },
         {
             "From App Key": "Reporting Tool",
             "To App Key": "Dashboard",
             "Data Form": "PDF",
             "Frequency": "Weekly",
-            "Communication Type": "File"
+            "Integration Pattern": "File Transfer",
+            "Description": "Weekly dashboard report generation"
         },
         {
             "From App Key": "Data Warehouse",
             "To App Key": "Analytics Platform",
             "Data Form": "CSV",
             "Frequency": "Daily",
-            "Communication Type": "Batch"
+            "Integration Pattern": "Direct DB Connection",
+            "Description": "Direct database queries for analytics"
         },
         {
             "From App Key": "Analytics Platform",
             "To App Key": "Dashboard",
             "Data Form": "JSON",
             "Frequency": "Daily",
-            "Communication Type": "Streaming"
+            "Integration Pattern": "Streaming",
+            "Description": "Real-time analytics dashboard updates"
         }
     ];
     
@@ -1767,7 +1936,7 @@ function calculateDashboardMetrics() {
     // Data quality score (based on complete fields)
     let validCount = 0;
     edges.forEach(edge => {
-        if (edge.communicationType && edge.communicationType !== 'Unknown' &&
+        if (edge.integrationPattern && edge.integrationPattern !== 'Unknown' &&
             edge.frequency && edge.frequency !== 'Unknown' &&
             edge.label && edge.label !== 'Unknown') {
             validCount++;
@@ -1814,12 +1983,12 @@ function createDashboardCharts() {
 }
 
 /**
- * Get communication type distribution
+ * Get integration pattern distribution
  */
 function getCommTypeDistribution(edges) {
     const distribution = {};
     edges.forEach(edge => {
-        const type = edge.communicationType || 'Unknown';
+        const type = edge.integrationPattern || 'Unknown';
         distribution[type] = (distribution[type] || 0) + 1;
     });
     return distribution;
@@ -1869,7 +2038,7 @@ function getValidationStats(edges) {
     let incomplete = 0;
     
     edges.forEach(edge => {
-        if (edge.communicationType && edge.communicationType !== 'Unknown' &&
+        if (edge.integrationPattern && edge.integrationPattern !== 'Unknown' &&
             edge.frequency && edge.frequency !== 'Unknown' &&
             edge.label && edge.label !== 'Unknown') {
             complete++;

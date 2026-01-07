@@ -91,14 +91,16 @@
 
         <div class="filter-section" id="filterSection" style="display: none;">
             <div class="filter-controls">
-                <label for="commTypeFilter">Filter by Communication Type:</label>
+                <label for="commTypeFilter">Filter by Integration Pattern:</label>
                 <select id="commTypeFilter" onchange="handleFilterChange()">
                     <option value="all">All Types</option>
                     <option value="batch">Batch</option>
-                    <option value="api">API/Online</option>
+                    <option value="api">Web Service/API</option>
                     <option value="streaming">Streaming/Real-time</option>
                     <option value="file">File Transfer</option>
-                    <option value="queue">Message Queue</option>
+                    <option value="queue">Messaging/Queue</option>
+                    <option value="db">Direct DB Connection</option>
+                    <option value="ui">UI Interaction</option>
                     <option value="mixed">Mixed/Hybrid</option>
                 </select>
                 <label for="frequencyFilter">Filter by Frequency:</label>
@@ -117,30 +119,24 @@
         <div id="legend" class="legend" style="display: none;">
             <h3>Legend</h3>
             <div class="legend-section">
-                <h4>Communication Type</h4>
+                <h4>Integration Pattern</h4>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#FF6B6B" stroke-width="4"/>
                     </svg>
-                    <span>Batch</span>
+                    <span>Direct DB Connection / Batch</span>
                 </div>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#4ECDC4" stroke-width="3" stroke-dasharray="8,4"/>
                     </svg>
-                    <span>API/Online</span>
+                    <span>Web Service / API</span>
                 </div>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#95E1D3" stroke-width="3" stroke-dasharray="3,3"/>
                     </svg>
                     <span>Streaming/Real-time</span>
-                </div>
-                <div class="legend-item">
-                    <svg width="60" height="4">
-                        <line x1="0" y1="2" x2="60" y2="2" stroke="#F38181" stroke-width="3" stroke-dasharray="10,5,3,5"/>
-                    </svg>
-                    <span>Mixed/Hybrid</span>
                 </div>
                 <div class="legend-item">
                     <svg width="60" height="4">
@@ -152,11 +148,23 @@
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#FCBAD3" stroke-width="3" stroke-dasharray="12,3,3,3"/>
                     </svg>
-                    <span>Message Queue</span>
+                    <span>Messaging / Message Queue</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#FFD93D" stroke-width="3" stroke-dasharray="8,3,2,3"/>
+                    </svg>
+                    <span>UI Interaction</span>
+                </div>
+                <div class="legend-item">
+                    <svg width="60" height="4">
+                        <line x1="0" y1="2" x2="60" y2="2" stroke="#F38181" stroke-width="3" stroke-dasharray="10,5,3,5"/>
+                    </svg>
+                    <span>Mixed/Hybrid</span>
                 </div>
             </div>
             <div class="legend-section">
-                <h4>Frequency (fallback if no Communication Type)</h4>
+                <h4>Frequency (fallback if no Integration Pattern)</h4>
                 <div class="legend-item">
                     <svg width="60" height="4">
                         <line x1="0" y1="2" x2="60" y2="2" stroke="#2196F3" stroke-width="3"/>
@@ -216,7 +224,7 @@
             <div class="stat-divider"></div>
             <div class="stat-item">
                 <div class="stat-value" id="statTypes">0</div>
-                <div class="stat-label">Comm Types</div>
+                <div class="stat-label">Patterns</div>
             </div>
         </div>
 

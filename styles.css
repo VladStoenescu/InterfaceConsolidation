@@ -1603,4 +1603,59 @@ body.light-theme .network-stats {
     }
 }
 
+/* Interface Description Modal Styles */
+#descriptionModal .modal-content {
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.interface-info {
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 4px solid var(--accent-blue);
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.interface-info p {
+    margin: 8px 0;
+    color: var(--text-secondary);
+}
+
+.interface-info strong {
+    color: var(--text-primary);
+    margin-right: 8px;
+}
+
+.flow-detail {
+    background: var(--dark-card);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+}
+
+.flow-detail h4 {
+    color: var(--accent-blue);
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.flow-detail p {
+    margin: 6px 0;
+    color: var(--text-secondary);
+}
+
+.flow-detail strong {
+    color: var(--text-primary);
+    margin-right: 8px;
+}
+
+#descriptionModal h3 {
+    color: var(--accent-blue);
+    margin: 20px 0 10px 0;
+    font-size: 18px;
+}
+
 
