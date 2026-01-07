@@ -2279,11 +2279,16 @@ async function exportPowerPointReport() {
         showLoading();
         showStatus('Generating PowerPoint presentation...', 'info');
         
+        // Constants for presentation
+        const MAX_CRITICAL_SYSTEMS = 10;
+        const ITEMS_PER_SLIDE = 5;
+        const RECOMMENDATIONS_PER_SLIDE = 3;
+        
         // Create new presentation
         const pptx = new PptxGenJS();
         
         // Get current date for report
-        const reportDate = new Date().toLocaleDateString();
+        const reportDate = new Date().toISOString().split('T')[0];
         
         // Get data from the executive view
         const criticalSystemsEl = document.getElementById('execCriticalSystems');
@@ -2360,8 +2365,7 @@ async function exportPowerPointReport() {
                 y: 1.5,
                 w: 3.0,
                 h: 2.5,
-                fill: { color: kpi.color },
-                line: { color: '000000', width: 0 }
+                fill: { color: kpi.color }
             });
             
             kpiSlide.addText(kpi.value, {
@@ -2405,14 +2409,13 @@ async function exportPowerPointReport() {
         const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
         
         let yPos = 1.5;
-        const itemsPerSlide = 5;
         let currentSlide = criticalSlide;
         let itemCount = 0;
         
         criticalItems.forEach((item, index) => {
-            if (index < 10) { // Limit to top 10 systems
+            if (index < MAX_CRITICAL_SYSTEMS) {
                 // Create new slide if needed
-                if (itemCount >= itemsPerSlide) {
+                if (itemCount >= ITEMS_PER_SLIDE) {
                     currentSlide = pptx.addSlide();
                     currentSlide.addText('Critical Path Systems (continued)', {
                         x: 0.5,
@@ -2431,7 +2434,7 @@ async function exportPowerPointReport() {
                 const detailsEl = item.querySelector('.system-details');
                 
                 if (!nameEl || !detailsEl) {
-                    console.warn('System item missing name or details element');
+                    console.warn(`Critical system item at index ${index} is missing name or details element`);
                     return;
                 }
                 
@@ -2531,13 +2534,12 @@ async function exportPowerPointReport() {
         const recItems = recommendationsList.querySelectorAll('.recommendation-item');
         
         yPos = 1.5;
-        const recsPerSlide = 3;
         currentSlide = recsSlide;
         itemCount = 0;
         
         recItems.forEach((item, index) => {
             // Create new slide if needed
-            if (itemCount >= recsPerSlide) {
+            if (itemCount >= RECOMMENDATIONS_PER_SLIDE) {
                 currentSlide = pptx.addSlide();
                 currentSlide.addText('Strategic Recommendations (continued)', {
                     x: 0.5,
@@ -2556,7 +2558,7 @@ async function exportPowerPointReport() {
             const descriptionEl = item.querySelector('.recommendation-description');
             
             if (!titleEl || !descriptionEl) {
-                console.warn('Recommendation item missing title or description element');
+                console.warn(`Recommendation item at index ${index} is missing title or description element`);
                 return;
             }
             
@@ -2596,7 +2598,7 @@ async function exportPowerPointReport() {
         });
         
         // Save the presentation
-        await pptx.writeFile({ fileName: `Executive_Report_${reportDate.replace(/\//g, '-')}.pptx` });
+        await pptx.writeFile({ fileName: `Executive_Report_${reportDate}.pptx` });
         
         hideLoading();
         showStatus('PowerPoint presentation exported successfully!', 'success');
