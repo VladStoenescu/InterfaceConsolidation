@@ -2286,9 +2286,17 @@ async function exportPowerPointReport() {
         const reportDate = new Date().toLocaleDateString();
         
         // Get data from the executive view
-        const criticalSystems = document.getElementById('execCriticalSystems').textContent;
-        const riskScore = document.getElementById('execRiskScore').textContent;
-        const complexity = document.getElementById('execComplexity').textContent;
+        const criticalSystemsEl = document.getElementById('execCriticalSystems');
+        const riskScoreEl = document.getElementById('execRiskScore');
+        const complexityEl = document.getElementById('execComplexity');
+        
+        if (!criticalSystemsEl || !riskScoreEl || !complexityEl) {
+            throw new Error('Required executive view elements not found. Please ensure data is loaded.');
+        }
+        
+        const criticalSystems = criticalSystemsEl.textContent;
+        const riskScore = riskScoreEl.textContent;
+        const complexity = complexityEl.textContent;
         
         // Slide 1: Title Slide
         const titleSlide = pptx.addSlide();
@@ -2391,6 +2399,9 @@ async function exportPowerPointReport() {
         });
         
         const criticalPathList = document.getElementById('criticalPathList');
+        if (!criticalPathList) {
+            throw new Error('Critical path list element not found.');
+        }
         const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
         
         let yPos = 1.5;
@@ -2416,8 +2427,16 @@ async function exportPowerPointReport() {
                     itemCount = 0;
                 }
                 
-                const name = item.querySelector('.system-name').textContent;
-                const details = item.querySelector('.system-details').textContent;
+                const nameEl = item.querySelector('.system-name');
+                const detailsEl = item.querySelector('.system-details');
+                
+                if (!nameEl || !detailsEl) {
+                    console.warn('System item missing name or details element');
+                    return;
+                }
+                
+                const name = nameEl.textContent;
+                const details = detailsEl.textContent;
                 
                 currentSlide.addShape(pptx.ShapeType.rect, {
                     x: 0.5,
@@ -2506,6 +2525,9 @@ async function exportPowerPointReport() {
         });
         
         const recommendationsList = document.getElementById('recommendationsList');
+        if (!recommendationsList) {
+            throw new Error('Recommendations list element not found.');
+        }
         const recItems = recommendationsList.querySelectorAll('.recommendation-item');
         
         yPos = 1.5;
@@ -2530,8 +2552,16 @@ async function exportPowerPointReport() {
                 itemCount = 0;
             }
             
-            const title = item.querySelector('.recommendation-title').textContent;
-            const description = item.querySelector('.recommendation-description').textContent;
+            const titleEl = item.querySelector('.recommendation-title');
+            const descriptionEl = item.querySelector('.recommendation-description');
+            
+            if (!titleEl || !descriptionEl) {
+                console.warn('Recommendation item missing title or description element');
+                return;
+            }
+            
+            const title = titleEl.textContent;
+            const description = descriptionEl.textContent;
             
             currentSlide.addShape(pptx.ShapeType.rect, {
                 x: 0.5,
