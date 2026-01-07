@@ -152,11 +152,11 @@ function updateNetworkStats(nodes, edges) {
 }
 
 /**
- * Extract nodes and edges from data
+ * Extract nodes and edges from data with consolidation
  */
 function extractNodesAndEdges(data) {
     const nodesMap = new Map();
-    const edges = [];
+    const edgeMap = new Map(); // Map to consolidate edges by from-to pair
     
     data.forEach((row, index) => {
         // Extract the required fields (case-insensitive)
@@ -186,14 +186,97 @@ function extractNodesAndEdges(data) {
             });
         }
         
-        // Create edge
+        // Create unique key for this edge (from-to pair)
+        // Using a more unique separator to avoid conflicts with application names
+        const edgeKey = `${fromApp}\u0000${toApp}`;
+        
+        // Consolidate edges with same from-to pair
+        if (!edgeMap.has(edgeKey)) {
+            // First flow for this interface
+            edgeMap.set(edgeKey, {
+                from: fromApp,
+                to: toApp,
+                flows: [{
+                    dataForm: dataForm,
+                    frequency: frequency,
+                    communicationType: communicationType
+                }]
+            });
+        } else {
+            // Additional flow for existing interface
+            edgeMap.get(edgeKey).flows.push({
+                dataForm: dataForm,
+                frequency: frequency,
+                communicationType: communicationType
+            });
+        }
+    });
+    
+    // Convert consolidated edges to final edge format
+    const edges = [];
+    edgeMap.forEach((edgeData) => {
+        const flows = edgeData.flows;
+        
+        // Collect unique communication types
+        const commTypes = new Set();
+        const commTypeMap = new Map(); // Map to store original casing
+        flows.forEach(flow => {
+            if (flow.communicationType && flow.communicationType !== 'Unknown') {
+                const lowerType = flow.communicationType.toLowerCase();
+                commTypes.add(lowerType);
+                if (!commTypeMap.has(lowerType)) {
+                    commTypeMap.set(lowerType, flow.communicationType);
+                }
+            }
+        });
+        
+        // Determine consolidated communication type
+        let consolidatedCommType;
+        if (commTypes.size > 1) {
+            // Multiple communication types = Mixed
+            consolidatedCommType = 'Mixed';
+        } else if (commTypes.size === 1) {
+            // Single communication type - use the original casing from the first occurrence
+            const lowerType = [...commTypes][0];
+            consolidatedCommType = commTypeMap.get(lowerType);
+        } else {
+            // No valid communication type found
+            consolidatedCommType = 'Unknown';
+        }
+        
+        // Collect unique data forms and frequencies for label
+        const dataForms = [...new Set(flows.map(f => f.dataForm))].filter(d => d !== 'Unknown');
+        const frequencies = [...new Set(flows.map(f => f.frequency))].filter(f => f !== 'Unknown');
+        
+        // Create consolidated label
+        const label = dataForms.length > 0 ? dataForms.join(', ') : 'Unknown';
+        
+        // Create detailed tooltip with all flows
+        let tooltip = `From: ${edgeData.from}\nTo: ${edgeData.to}\n`;
+        tooltip += `Communication Type: ${consolidatedCommType}\n`;
+        if (flows.length > 1) {
+            tooltip += `\nConsolidated from ${flows.length} information flows:\n`;
+            flows.forEach((flow, idx) => {
+                tooltip += `\n  Flow ${idx + 1}:\n`;
+                tooltip += `    Data Form: ${flow.dataForm}\n`;
+                tooltip += `    Frequency: ${flow.frequency}\n`;
+                tooltip += `    Communication Type: ${flow.communicationType}`;
+                if (idx < flows.length - 1) tooltip += '\n';
+            });
+        } else {
+            tooltip += `Data Form: ${flows[0].dataForm}\n`;
+            tooltip += `Frequency: ${flows[0].frequency}`;
+        }
+        
         edges.push({
-            from: fromApp,
-            to: toApp,
-            label: dataForm,
-            frequency: frequency,
-            communicationType: communicationType,
-            tooltip: `From: ${fromApp}\nTo: ${toApp}\nData Form: ${dataForm}\nFrequency: ${frequency}\nCommunication Type: ${communicationType}`
+            from: edgeData.from,
+            to: edgeData.to,
+            label: label,
+            frequency: frequencies.length > 0 ? frequencies.join(', ') : 'Unknown',
+            communicationType: consolidatedCommType,
+            tooltip: tooltip,
+            flowCount: flows.length,
+            flows: flows // Store all flows for reference
         });
     });
     
@@ -1020,6 +1103,14 @@ function loadSampleData() {
             "Frequency": "Daily",
             "Communication Type": "Batch"
         },
+        // Duplicate flow: CRM System -> Data Warehouse with different communication type (should consolidate to Mixed)
+        {
+            "From App Key": "CRM System",
+            "To App Key": "Data Warehouse",
+            "Data Form": "XML",
+            "Frequency": "Weekly",
+            "Communication Type": "API"
+        },
         {
             "From App Key": "CRM System",
             "To App Key": "Email Service",
@@ -1048,6 +1139,14 @@ function loadSampleData() {
             "Frequency": "Daily",
             "Communication Type": "API"
         },
+        // Duplicate flow: Payment Gateway -> CRM System with different data form (should consolidate)
+        {
+            "From App Key": "Payment Gateway",
+            "To App Key": "CRM System",
+            "Data Form": "XML",
+            "Frequency": "Weekly",
+            "Communication Type": "API"
+        },
         {
             "From App Key": "Payment Gateway",
             "To App Key": "Audit System",
@@ -1061,6 +1160,14 @@ function loadSampleData() {
             "Data Form": "JSON",
             "Frequency": "Daily",
             "Communication Type": "Streaming"
+        },
+        // Duplicate flow: Mobile App -> API Gateway with different communication type (should consolidate to Mixed)
+        {
+            "From App Key": "Mobile App",
+            "To App Key": "API Gateway",
+            "Data Form": "XML",
+            "Frequency": "Weekly",
+            "Communication Type": "Batch"
         },
         {
             "From App Key": "API Gateway",
