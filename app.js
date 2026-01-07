@@ -2271,4 +2271,311 @@ function createPrintableReport() {
     return html;
 }
 
+/**
+ * Export executive report as PowerPoint presentation
+ */
+async function exportPowerPointReport() {
+    try {
+        showLoading();
+        showStatus('Generating PowerPoint presentation...', 'info');
+        
+        // Create new presentation
+        const pptx = new PptxGenJS();
+        
+        // Get current date for report
+        const reportDate = new Date().toLocaleDateString();
+        
+        // Get data from the executive view
+        const criticalSystems = document.getElementById('execCriticalSystems').textContent;
+        const riskScore = document.getElementById('execRiskScore').textContent;
+        const complexity = document.getElementById('execComplexity').textContent;
+        
+        // Slide 1: Title Slide
+        const titleSlide = pptx.addSlide();
+        titleSlide.background = { color: '1E3A5F' };
+        
+        titleSlide.addText('Executive Management Report', {
+            x: 0.5,
+            y: 1.5,
+            w: 9,
+            h: 1.0,
+            fontSize: 44,
+            bold: true,
+            color: '00d4ff',
+            align: 'center'
+        });
+        
+        titleSlide.addText('Interface Consolidation Analysis', {
+            x: 0.5,
+            y: 2.7,
+            w: 9,
+            h: 0.5,
+            fontSize: 24,
+            color: 'FFFFFF',
+            align: 'center'
+        });
+        
+        titleSlide.addText(`Generated: ${reportDate}`, {
+            x: 0.5,
+            y: 3.4,
+            w: 9,
+            h: 0.3,
+            fontSize: 14,
+            color: 'CCCCCC',
+            align: 'center'
+        });
+        
+        // Slide 2: Key Performance Indicators
+        const kpiSlide = pptx.addSlide();
+        kpiSlide.addText('Key Performance Indicators', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 0.6,
+            fontSize: 32,
+            bold: true,
+            color: '1E3A5F'
+        });
+        
+        // Add KPI boxes
+        const kpiData = [
+            { label: 'Critical Systems', value: criticalSystems, color: 'FF6B6B' },
+            { label: 'Risk Score', value: riskScore, color: 'FFA500' },
+            { label: 'Integration Complexity', value: complexity, color: '4ECDC4' }
+        ];
+        
+        kpiData.forEach((kpi, index) => {
+            const xPos = 0.5 + (index * 3.3);
+            
+            kpiSlide.addShape(pptx.ShapeType.rect, {
+                x: xPos,
+                y: 1.5,
+                w: 3.0,
+                h: 2.5,
+                fill: { color: kpi.color },
+                line: { color: '000000', width: 0 }
+            });
+            
+            kpiSlide.addText(kpi.value, {
+                x: xPos,
+                y: 2.0,
+                w: 3.0,
+                h: 0.8,
+                fontSize: 48,
+                bold: true,
+                color: 'FFFFFF',
+                align: 'center'
+            });
+            
+            kpiSlide.addText(kpi.label, {
+                x: xPos,
+                y: 2.9,
+                w: 3.0,
+                h: 0.5,
+                fontSize: 16,
+                color: 'FFFFFF',
+                align: 'center'
+            });
+        });
+        
+        // Slide 3: Critical Path Systems
+        const criticalSlide = pptx.addSlide();
+        criticalSlide.addText('Critical Path Systems', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 0.6,
+            fontSize: 32,
+            bold: true,
+            color: '1E3A5F'
+        });
+        
+        const criticalPathList = document.getElementById('criticalPathList');
+        const criticalItems = criticalPathList.querySelectorAll('.critical-system-item');
+        
+        let yPos = 1.5;
+        const itemsPerSlide = 5;
+        let currentSlide = criticalSlide;
+        let itemCount = 0;
+        
+        criticalItems.forEach((item, index) => {
+            if (index < 10) { // Limit to top 10 systems
+                // Create new slide if needed
+                if (itemCount >= itemsPerSlide) {
+                    currentSlide = pptx.addSlide();
+                    currentSlide.addText('Critical Path Systems (continued)', {
+                        x: 0.5,
+                        y: 0.5,
+                        w: 9,
+                        h: 0.6,
+                        fontSize: 32,
+                        bold: true,
+                        color: '1E3A5F'
+                    });
+                    yPos = 1.5;
+                    itemCount = 0;
+                }
+                
+                const name = item.querySelector('.system-name').textContent;
+                const details = item.querySelector('.system-details').textContent;
+                
+                currentSlide.addShape(pptx.ShapeType.rect, {
+                    x: 0.5,
+                    y: yPos,
+                    w: 9,
+                    h: 0.9,
+                    fill: { color: 'F5F5F5' },
+                    line: { color: '00d4ff', width: 3 }
+                });
+                
+                currentSlide.addText(`${index + 1}. ${name}`, {
+                    x: 0.7,
+                    y: yPos + 0.1,
+                    w: 8.6,
+                    h: 0.3,
+                    fontSize: 16,
+                    bold: true,
+                    color: '1E3A5F'
+                });
+                
+                currentSlide.addText(details, {
+                    x: 0.7,
+                    y: yPos + 0.45,
+                    w: 8.6,
+                    h: 0.35,
+                    fontSize: 12,
+                    color: '666666'
+                });
+                
+                yPos += 1.1;
+                itemCount++;
+            }
+        });
+        
+        // Slide 4: Risk Impact Analysis
+        const riskSlide = pptx.addSlide();
+        riskSlide.addText('Risk Impact Analysis', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 0.6,
+            fontSize: 32,
+            bold: true,
+            color: '1E3A5F'
+        });
+        
+        riskSlide.addText('Risk Distribution Overview', {
+            x: 0.5,
+            y: 1.5,
+            w: 9,
+            h: 0.4,
+            fontSize: 18,
+            color: '666666'
+        });
+        
+        // Add placeholder for risk scatter plot
+        riskSlide.addShape(pptx.ShapeType.rect, {
+            x: 1.0,
+            y: 2.2,
+            w: 8.0,
+            h: 3.0,
+            fill: { color: 'F9F9F9' },
+            line: { color: 'CCCCCC', width: 1 }
+        });
+        
+        riskSlide.addText('Systems are plotted based on:\n• X-axis: Number of Dependencies\n• Y-axis: Risk Score\n• Size: Relative Impact', {
+            x: 1.5,
+            y: 2.7,
+            w: 7.0,
+            h: 2.0,
+            fontSize: 14,
+            color: '666666',
+            align: 'left'
+        });
+        
+        // Slide 5: Strategic Recommendations
+        const recsSlide = pptx.addSlide();
+        recsSlide.addText('Strategic Recommendations', {
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 0.6,
+            fontSize: 32,
+            bold: true,
+            color: '1E3A5F'
+        });
+        
+        const recommendationsList = document.getElementById('recommendationsList');
+        const recItems = recommendationsList.querySelectorAll('.recommendation-item');
+        
+        yPos = 1.5;
+        const recsPerSlide = 3;
+        currentSlide = recsSlide;
+        itemCount = 0;
+        
+        recItems.forEach((item, index) => {
+            // Create new slide if needed
+            if (itemCount >= recsPerSlide) {
+                currentSlide = pptx.addSlide();
+                currentSlide.addText('Strategic Recommendations (continued)', {
+                    x: 0.5,
+                    y: 0.5,
+                    w: 9,
+                    h: 0.6,
+                    fontSize: 32,
+                    bold: true,
+                    color: '1E3A5F'
+                });
+                yPos = 1.5;
+                itemCount = 0;
+            }
+            
+            const title = item.querySelector('.recommendation-title').textContent;
+            const description = item.querySelector('.recommendation-description').textContent;
+            
+            currentSlide.addShape(pptx.ShapeType.rect, {
+                x: 0.5,
+                y: yPos,
+                w: 9,
+                h: 1.3,
+                fill: { color: 'F0F8FF' },
+                line: { color: '00d4ff', width: 2 }
+            });
+            
+            currentSlide.addText(`${index + 1}. ${title}`, {
+                x: 0.7,
+                y: yPos + 0.15,
+                w: 8.6,
+                h: 0.35,
+                fontSize: 16,
+                bold: true,
+                color: '1E3A5F'
+            });
+            
+            currentSlide.addText(description, {
+                x: 0.7,
+                y: yPos + 0.55,
+                w: 8.6,
+                h: 0.6,
+                fontSize: 12,
+                color: '666666'
+            });
+            
+            yPos += 1.5;
+            itemCount++;
+        });
+        
+        // Save the presentation
+        await pptx.writeFile({ fileName: `Executive_Report_${reportDate.replace(/\//g, '-')}.pptx` });
+        
+        hideLoading();
+        showStatus('PowerPoint presentation exported successfully!', 'success');
+        
+    } catch (error) {
+        hideLoading();
+        showStatus('Error exporting PowerPoint: ' + error.message, 'error');
+        console.error('PowerPoint export error:', error);
+    }
+}
+
 
