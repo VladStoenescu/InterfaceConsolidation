@@ -3944,3 +3944,156 @@ function exportCutoverTaskList() {
     showStatus('Cutover task list exported successfully!', 'success');
 }
 
+// ==================== TEST DATA GENERATOR FUNCTIONS ====================
+
+/**
+ * Toggle test data generator section visibility
+ */
+function toggleTestDataGenerator() {
+    const controls = document.getElementById('testDataControls');
+    const toggleBtn = document.getElementById('testDataToggleBtn');
+    
+    if (controls.style.display === 'none') {
+        controls.style.display = 'block';
+        toggleBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            Hide
+        `;
+    } else {
+        controls.style.display = 'none';
+        toggleBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            Show
+        `;
+    }
+}
+
+/**
+ * Update data quality display when slider changes
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const qualitySlider = document.getElementById('dataQuality');
+    const qualityValue = document.getElementById('dataQualityValue');
+    
+    if (qualitySlider && qualityValue) {
+        qualitySlider.addEventListener('input', function() {
+            qualityValue.textContent = this.value + '%';
+        });
+    }
+});
+
+/**
+ * Generate test data and download files
+ */
+function generateAndDownloadTestData() {
+    try {
+        showLoading();
+        showStatus('Generating test data...', 'info');
+        
+        // Get configuration from UI
+        const options = getGeneratorOptions();
+        
+        // Generate data
+        const testData = TestDataGenerator.generateTestData(options);
+        
+        // Create timestamp for filenames
+        const timestamp = new Date().toISOString().split('T')[0];
+        
+        // Export connections to Excel
+        TestDataGenerator.exportToExcel(
+            testData.connections,
+            `test_interfaces_${timestamp}.xlsx`
+        );
+        
+        // Export core applications if any
+        if (options.coreSystemCount > 0) {
+            TestDataGenerator.exportCoreApplicationsToCSV(
+                testData.coreApplications,
+                `test_core_applications_${timestamp}.csv`
+            );
+        }
+        
+        hideLoading();
+        showStatus(
+            `Successfully generated ${testData.connections.length} connections between ${options.systemCount} systems. Files downloaded.`,
+            'success'
+        );
+        
+    } catch (error) {
+        hideLoading();
+        showStatus('Error generating test data: ' + error.message, 'error');
+        console.error(error);
+    }
+}
+
+/**
+ * Generate test data and load it immediately into the visualization
+ */
+function generateAndLoadTestData() {
+    try {
+        showLoading();
+        showStatus('Generating and loading test data...', 'info');
+        
+        // Get configuration from UI
+        const options = getGeneratorOptions();
+        
+        // Generate data
+        const testData = TestDataGenerator.generateTestData(options);
+        
+        // Load core applications if any
+        if (options.coreSystemCount > 0) {
+            coreApplications.clear();
+            testData.coreApplications.forEach(app => {
+                coreApplications.add(app.Application);
+            });
+            console.log('Core applications loaded:', Array.from(coreApplications));
+        } else {
+            coreApplications.clear();
+        }
+        
+        // Process and visualize the data
+        processAndVisualize(testData.connections);
+        
+        hideLoading();
+        showStatus(
+            `Successfully generated and loaded ${testData.connections.length} connections between ${options.systemCount} systems.`,
+            'success'
+        );
+        
+    } catch (error) {
+        hideLoading();
+        showStatus('Error generating test data: ' + error.message, 'error');
+        console.error(error);
+    }
+}
+
+/**
+ * Get generator options from UI
+ * @returns {Object} Options object for the generator
+ */
+function getGeneratorOptions() {
+    const systemCount = parseInt(document.getElementById('systemCount').value) || 15;
+    const connectionCount = parseInt(document.getElementById('connectionCount').value) || 30;
+    const coreSystemCount = parseInt(document.getElementById('coreSystemCount').value) || 4;
+    const dataQuality = parseInt(document.getElementById('dataQuality').value) || 90;
+    const includeDescriptions = document.getElementById('includeDescriptions').checked;
+    
+    // Validate
+    if (coreSystemCount > systemCount) {
+        throw new Error('Core system count cannot exceed total system count');
+    }
+    
+    return {
+        systemCount,
+        connectionCount,
+        coreSystemCount,
+        dataQuality,
+        includeDescriptions
+    };
+}
+
+

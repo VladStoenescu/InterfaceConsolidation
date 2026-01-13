@@ -2005,3 +2005,274 @@ body.light-theme .task-group {
 body.light-theme .connection-list {
     background: rgba(102, 126, 234, 0.05);
 }
+
+/* ==================== TEST DATA GENERATOR STYLES ==================== */
+
+.test-data-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.test-data-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.test-data-section h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.3em;
+}
+
+.test-data-section .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--accent-purple);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.test-data-section .toggle-btn:hover {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+}
+
+.test-data-section .toggle-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.test-data-controls {
+    margin-top: 15px;
+}
+
+.test-data-controls .section-description {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95em;
+}
+
+.generator-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.option-group label {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.option-group input[type="number"],
+.option-group input[type="range"] {
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.option-group input[type="number"]:focus,
+.option-group input[type="range"]:focus {
+    outline: none;
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.2);
+}
+
+.option-group input[type="range"] {
+    padding: 0;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border-color);
+    outline: none;
+}
+
+.option-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.option-group input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--accent-dark);
+    transform: scale(1.1);
+}
+
+.option-group input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.option-group input[type="range"]::-moz-range-thumb:hover {
+    background: var(--accent-dark);
+    transform: scale(1.1);
+}
+
+#dataQualityValue {
+    color: var(--accent-purple);
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.checkbox-group {
+    flex-direction: row;
+    align-items: center;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--accent-purple);
+}
+
+.generator-actions {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.generate-btn {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+}
+
+.generate-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(118, 75, 162, 0.4);
+}
+
+.generate-btn:active {
+    transform: translateY(-1px);
+}
+
+.generate-btn.secondary {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+}
+
+.generate-btn.secondary:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 1) 0%, rgba(118, 75, 162, 1) 100%);
+}
+
+.generator-info {
+    padding: 15px;
+    background: rgba(102, 126, 234, 0.1);
+    border-left: 4px solid var(--accent-purple);
+    border-radius: 6px;
+}
+
+.generator-info p {
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.generator-info ul {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-secondary);
+}
+
+.generator-info li {
+    margin: 5px 0;
+}
+
+.generator-info code {
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: var(--accent-cyan);
+    font-size: 0.9em;
+}
+
+/* Light theme adjustments */
+body.light-theme .test-data-section {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+}
+
+body.light-theme .option-group input[type="number"],
+body.light-theme .option-group input[type="range"] {
+    background: white;
+}
+
+body.light-theme .generator-info {
+    background: rgba(102, 126, 234, 0.08);
+}
+
+body.light-theme .generator-info code {
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--accent-purple);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .generator-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .generator-actions {
+        flex-direction: column;
+    }
+    
+    .generate-btn {
+        min-width: 100%;
+    }
+}

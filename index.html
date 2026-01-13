@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <script src="lib/xlsx.full.min.js"></script>
     <script src="lib/pptxgen.bundle.js"></script>
+    <script src="lib/testDataGenerator.js"></script>
 </head>
 <body>
     <!-- Theme Toggle -->
@@ -98,6 +99,81 @@
                 </div>
             </div>
             <button id="uploadBtn" onclick="handleMultiFileUpload()">Upload and Visualize</button>
+        </div>
+
+        <!-- Test Data Generator Section -->
+        <div class="test-data-section">
+            <div class="section-header">
+                <h3>Test Data Generator</h3>
+                <button class="toggle-btn" onclick="toggleTestDataGenerator()" id="testDataToggleBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                    Show
+                </button>
+            </div>
+            
+            <div class="test-data-controls" id="testDataControls" style="display: none;">
+                <p class="section-description">Generate realistic test data for UAT testing</p>
+                
+                <div class="generator-options">
+                    <div class="option-group">
+                        <label for="systemCount">Number of Systems:</label>
+                        <input type="number" id="systemCount" min="2" max="100" value="15" />
+                    </div>
+                    
+                    <div class="option-group">
+                        <label for="connectionCount">Number of Connections:</label>
+                        <input type="number" id="connectionCount" min="1" max="500" value="30" />
+                    </div>
+                    
+                    <div class="option-group">
+                        <label for="coreSystemCount">Core Systems (Level 1):</label>
+                        <input type="number" id="coreSystemCount" min="0" max="20" value="4" />
+                    </div>
+                    
+                    <div class="option-group">
+                        <label for="dataQuality">Data Quality (%):</label>
+                        <input type="range" id="dataQuality" min="50" max="100" value="90" />
+                        <span id="dataQualityValue">90%</span>
+                    </div>
+                    
+                    <div class="option-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="includeDescriptions" checked />
+                            Include Descriptions
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="generator-actions">
+                    <button class="generate-btn" onclick="generateAndDownloadTestData()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Generate & Download Files
+                    </button>
+                    
+                    <button class="generate-btn secondary" onclick="generateAndLoadTestData()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                        Generate & Load Immediately
+                    </button>
+                </div>
+                
+                <div class="generator-info">
+                    <p><strong>Note:</strong> Generated files will include:</p>
+                    <ul>
+                        <li><code>test_interfaces_[date].xlsx</code> - Connection data with all required columns</li>
+                        <li><code>test_core_applications_[date].csv</code> - Core applications list (if core systems > 0)</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <!-- Connection Type Tabs -->
