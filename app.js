@@ -41,6 +41,7 @@ const NODE_PADDING = 10; // Padding inside node boxes
 const NODE_HEIGHT = 40; // Height of node boxes
 const EDGE_LABEL_LINE_HEIGHT = 13; // Line height for multi-line edge labels
 const EDGE_LABEL_CHAR_WIDTH = 7; // Character width for edge label text
+const LEVEL_BADGE_SIZE = 20; // Size of level badge circle
 
 // Constants for force-directed layout algorithm
 const LAYOUT_GRID_RANDOM_OFFSET = 20; // Random offset in pixels for initial grid positioning
@@ -430,10 +431,11 @@ function identifyApplicationLevels(nodes, edges) {
         
         // If from is Level 2 and to is unassigned, check if to connects to Level 1
         if (fromLevel === 2 && !toLevel) {
-            // Check if this app has any direct connection to Level 1
+            // Check if edge.to has any direct connection to Level 1
+            // (either as source or target of an edge)
             const hasLevel1Connection = edges.some(e => 
-                (e.from === edge.to && applicationLevels.get(e.to) === 1) ||
-                (e.to === edge.to && applicationLevels.get(e.from) === 1)
+                (e.from === edge.to && applicationLevels.get(e.to) === 1) ||  // edge.to → Level1
+                (e.to === edge.to && applicationLevels.get(e.from) === 1)      // Level1 → edge.to
             );
             if (!hasLevel1Connection) {
                 level3Candidates.add(edge.to);
@@ -441,9 +443,11 @@ function identifyApplicationLevels(nodes, edges) {
         }
         // If to is Level 2 and from is unassigned, check if from connects to Level 1
         if (toLevel === 2 && !fromLevel) {
+            // Check if edge.from has any direct connection to Level 1
+            // (either as source or target of an edge)
             const hasLevel1Connection = edges.some(e => 
-                (e.from === edge.from && applicationLevels.get(e.to) === 1) ||
-                (e.to === edge.from && applicationLevels.get(e.from) === 1)
+                (e.from === edge.from && applicationLevels.get(e.to) === 1) ||  // edge.from → Level1
+                (e.to === edge.from && applicationLevels.get(e.from) === 1)     // Level1 → edge.from
             );
             if (!hasLevel1Connection) {
                 level3Candidates.add(edge.from);
@@ -1368,15 +1372,14 @@ function createNetworkVisualization(nodes, edges) {
         
         // Add level badge if level is defined
         if (level) {
-            const badgeSize = 20;
-            const badgeX = pos.x + textWidth / 2 + NODE_PADDING - badgeSize / 2;
+            const badgeX = pos.x + textWidth / 2 + NODE_PADDING - LEVEL_BADGE_SIZE / 2;
             const badgeY = pos.y - NODE_HEIGHT / 2;
             
             // Badge circle
             const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             badge.setAttribute('cx', badgeX);
             badge.setAttribute('cy', badgeY);
-            badge.setAttribute('r', badgeSize / 2);
+            badge.setAttribute('r', LEVEL_BADGE_SIZE / 2);
             
             // Badge color based on level
             let badgeColor = '#888888';
