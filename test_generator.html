@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Data Generator Test</title>
+    <script src="lib/xlsx.full.min.js"></script>
+    <script src="lib/testDataGenerator.js"></script>
+</head>
+<body>
+    <h1>Testing Test Data Generator</h1>
+    <div id="results"></div>
+    <script>
+        try {
+            console.log('Testing Test Data Generator...');
+            
+            // Test 1: Generate small dataset
+            const testData1 = TestDataGenerator.generateTestData({
+                systemCount: 5,
+                connectionCount: 8,
+                coreSystemCount: 2,
+                includeDescriptions: true,
+                dataQuality: 90
+            });
+            
+            console.log('Test 1 - Generated data:', testData1);
+            console.log('Connections:', testData1.connections.length);
+            console.log('Core applications:', testData1.coreApplications.length);
+            
+            // Validate structure
+            if (testData1.connections.length > 0) {
+                const firstConn = testData1.connections[0];
+                console.log('First connection structure:', firstConn);
+                
+                const requiredFields = ['From App Key', 'To App Key', 'Data Format', 'Frequency', 'Integration Pattern'];
+                const hasAllFields = requiredFields.every(field => field in firstConn);
+                
+                if (hasAllFields) {
+                    document.getElementById('results').innerHTML = '<h2 style="color: green">✓ Test Passed!</h2>';
+                    document.getElementById('results').innerHTML += '<p>Generated ' + testData1.connections.length + ' connections successfully.</p>';
+                    document.getElementById('results').innerHTML += '<p>Core applications: ' + testData1.coreApplications.length + '</p>';
+                    document.getElementById('results').innerHTML += '<pre>' + JSON.stringify(firstConn, null, 2) + '</pre>';
+                } else {
+                    document.getElementById('results').innerHTML = '<h2 style="color: red">✗ Test Failed!</h2>';
+                    document.getElementById('results').innerHTML += '<p>Missing required fields</p>';
+                }
+            }
+            
+        } catch (error) {
+            console.error('Test failed:', error);
+            document.getElementById('results').innerHTML = '<h2 style="color: red">✗ Test Failed!</h2>';
+            document.getElementById('results').innerHTML += '<p>' + error.message + '</p>';
+        }
+    </script>
+</body>
+</html>
