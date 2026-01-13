@@ -73,6 +73,12 @@
                 </svg>
                 Executive View
             </button>
+            <button class="nav-btn" onclick="switchView('hierarchy')" data-view="hierarchy">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M2 7h20M2 12h20M2 17h20"/>
+                </svg>
+                Hierarchy View
+            </button>
         </div>
         
         <div class="upload-section">
@@ -551,6 +557,41 @@
             <div class="executive-section">
                 <h3>Strategic Recommendations</h3>
                 <div id="recommendationsList" class="recommendations-list"></div>
+            </div>
+        </div>
+
+        <!-- Hierarchical View -->
+        <div id="hierarchyView" class="view-section" style="display: none;">
+            <div class="hierarchy-header">
+                <h2>Hierarchical System View</h2>
+                <p class="hierarchy-subtitle">Systems organized by architectural levels (L0: Core → L1 → L2 → L3)</p>
+            </div>
+            
+            <div class="hierarchy-container">
+                <svg id="hierarchySvg" width="100%" height="100%"></svg>
+            </div>
+            
+            <!-- Hierarchy Stats -->
+            <div id="hierarchyStats" class="network-stats" style="display: none;">
+                <div class="stat-item">
+                    <div class="stat-value" id="statL0">0</div>
+                    <div class="stat-label">L0 (Core)</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statL1">0</div>
+                    <div class="stat-label">L1</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statL2">0</div>
+                    <div class="stat-label">L2</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statL3">0</div>
+                    <div class="stat-label">L3</div>
+                </div>
             </div>
         </div>
     </div>
