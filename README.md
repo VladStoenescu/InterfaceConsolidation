@@ -83,11 +83,25 @@ The application supports the following integration pattern types, each displayed
 
 1. Open `index.html` in a modern web browser
 2. The application will automatically load sample data for demonstration
-3. **Switch between views** using the navigation buttons:
+3. **Generate Test Data for UAT** (optional):
+   - Click "Show" in the Test Data Generator section to expand the options
+   - Configure the generator settings:
+     - **Number of Systems**: Total systems to generate (2-100, default: 15)
+     - **Number of Connections**: Total connections to generate (1-500, default: 30)
+     - **Core Systems (Level 1)**: Number of core applications (0-20, default: 4)
+     - **Data Quality**: Percentage of complete data fields (50-100%, default: 90%)
+     - **Include Descriptions**: Toggle to add/remove descriptions
+   - Choose one of two options:
+     - **Generate & Download Files**: Creates Excel and CSV files to save locally
+       - `test_interfaces_[date].xlsx` - Connection data with all required columns
+       - `test_core_applications_[date].csv` - Core applications list (if core systems > 0)
+     - **Generate & Load Immediately**: Generates and loads data directly into the visualization
+   - The generator creates realistic test data with various integration patterns, frequencies, and data formats
+4. **Switch between views** using the navigation buttons:
    - **Network View**: Interactive network diagram of system interfaces
    - **Dashboard**: Summary insights and metrics with visual charts
    - **Executive View**: High-level strategic view with risk analysis
-4. **Upload your own data**:
+5. **Upload your own data**:
    - **(Optional) Core Applications**: Upload an Excel/CSV file with a single column listing your core applications (Level 1). This enables level-based visualization.
      - Example format: See `sample_core_applications.csv`
      - Column name: "Application", "App", "System", "App Key", or similar
@@ -96,14 +110,14 @@ The application supports the following integration pattern types, each displayed
      - Target Connections (New): Planned new interfaces
      - Changed Connections: Modified interfaces
    - Click "Upload and Visualize" to process the files
-5. **Level-Based Organization** (when core applications are provided):
+6. **Level-Based Organization** (when core applications are provided):
    - **Level 1 (Red)**: Core applications as defined in your core applications file
    - **Level 2 (Teal)**: Applications directly connected to Level 1 systems
    - **Level 3 (Yellow)**: Applications connected to Level 2 (but not directly to Level 1)
    - Nodes are automatically grouped by level in the visualization
    - Level badges (L1, L2, L3) appear on each node
    - Legend shows level color coding
-6. **Network View features**:
+7. **Network View features**:
    - **Hover over connections** to see detailed tooltip information including all consolidated flows
    - **Click on connections** to view detailed interface descriptions in a modal dialog
    - Connection labels show:
@@ -117,18 +131,18 @@ The application supports the following integration pattern types, each displayed
      - Drag nodes to rearrange the layout
      - Zoom in/out using the mouse wheel
      - Pan the view by dragging the background
-7. **Dashboard features**:
+8. **Dashboard features**:
    - View KPIs: Total interfaces, systems, average connections, and data quality score
    - Analyze charts showing interface distribution and top connected systems
    - Monitor data validation statistics
-8. **Executive View features**:
+9. **Executive View features**:
    - Review critical systems and overall risk assessment
    - Analyze critical path systems with impact ratings
    - View risk impact scatter plot
    - Read strategic recommendations
    - Export report as PDF using the "Export PDF Report" button (opens browser print dialog)
    - Export report as PowerPoint presentation using the "Export PowerPoint" button (generates .pptx file with professional slides)
-8. **Version Management**:
+10. **Version Management**:
    - Save current data as a version for comparison
    - Load previously saved versions
    - Compare different versions to track changes
@@ -178,6 +192,51 @@ Once uploaded, the application will automatically:
 3. Determine **Level 3** applications (those connected to Level 2 but not directly to Level 1, shown in yellow)
 4. Organize the visualization with levels grouped vertically
 5. Add level badges (L1, L2, L3) to each node
+
+## Test Data Generator
+
+The application includes a built-in test data generator for UAT (User Acceptance Testing) purposes. This feature allows you to quickly create realistic test data without manually preparing Excel files.
+
+### Features
+
+- **Configurable Parameters**:
+  - Number of systems (2-100)
+  - Number of connections (1-500)
+  - Core systems/Level 1 applications (0-20)
+  - Data quality percentage (50-100%)
+  - Option to include/exclude descriptions
+  
+- **Realistic Data Generation**:
+  - Automatically generates diverse system names (e.g., "CRM System", "ERP Platform", "HR Portal")
+  - Random integration patterns (Direct DB Connection, Web Service, API, Batch, Streaming, etc.)
+  - Various frequencies (Daily, Weekly, Monthly, Yearly, Hourly, Real-time, On Demand)
+  - Multiple data formats (CSV, XML, JSON, PDF, Excel, Parquet, Avro, Binary)
+  - Contextual descriptions based on the connection details
+
+- **Level-Based Organization**:
+  - Automatically designates specified number of systems as Level 1 (Core)
+  - Properly organizes remaining systems into Level 2 and Level 3 based on connections
+
+### How to Use
+
+1. Click the "Show" button in the Test Data Generator section
+2. Adjust parameters as needed:
+   - **Number of Systems**: Total number of unique systems to generate
+   - **Number of Connections**: Total number of interfaces between systems
+   - **Core Systems**: How many should be designated as Level 1 (enables level-based visualization)
+   - **Data Quality**: Slider to control completeness of data (higher = more complete fields)
+   - **Include Descriptions**: Checkbox to add/remove detailed descriptions
+3. Choose an action:
+   - **Generate & Download Files**: Creates downloadable Excel and CSV files
+   - **Generate & Load Immediately**: Generates data and loads it directly into the visualization
+
+### Output Files
+
+When using "Generate & Download Files", you'll receive:
+- `test_interfaces_[date].xlsx` - Excel file with all connection data
+- `test_core_applications_[date].csv` - CSV file with core applications list (only if Core Systems > 0)
+
+Both files are ready to be uploaded back into the application for testing.
 
 ## Technical Details
 
