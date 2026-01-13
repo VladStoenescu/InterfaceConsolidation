@@ -5,6 +5,12 @@ A simple web application to consolidate an Excel file into a visual representati
 ## Features
 
 - **Excel File Import**: Upload Excel files (.xlsx, .xls) containing interface data
+- **Level-Based Integration Layout**: Organize systems by integration levels:
+  - **Level 1 (Core)**: Core applications defined by the user
+  - **Level 2**: Applications directly connected to Level 1 (core) systems
+  - **Level 3**: Applications connected to Level 2 systems (not directly to core)
+  - Visual grouping by level with color-coded nodes and level badges
+  - Optional: upload a core applications list to enable level-based organization
 - **Visual Network Diagram**: Automatically generates an interactive network diagram showing system interfaces
 - **Force-Directed Layout**: Uses a physics-based algorithm to distribute nodes naturally and reduce clutter
 - **Curved Edges**: Connections use curved paths to minimize visual overlap and improve readability
@@ -81,8 +87,23 @@ The application supports the following integration pattern types, each displayed
    - **Network View**: Interactive network diagram of system interfaces
    - **Dashboard**: Summary insights and metrics with visual charts
    - **Executive View**: High-level strategic view with risk analysis
-4. **Upload your own data**: Click "Choose File" and select an Excel file, then click "Upload and Visualize"
-5. **Network View features**:
+4. **Upload your own data**:
+   - **(Optional) Core Applications**: Upload an Excel/CSV file with a single column listing your core applications (Level 1). This enables level-based visualization.
+     - Example format: See `sample_core_applications.csv`
+     - Column name: "Application", "App", "System", "App Key", or similar
+   - **Connection Files**: Upload one or more Excel files with interface data
+     - Existing Connections: Current production interfaces
+     - Target Connections (New): Planned new interfaces
+     - Changed Connections: Modified interfaces
+   - Click "Upload and Visualize" to process the files
+5. **Level-Based Organization** (when core applications are provided):
+   - **Level 1 (Red)**: Core applications as defined in your core applications file
+   - **Level 2 (Teal)**: Applications directly connected to Level 1 systems
+   - **Level 3 (Yellow)**: Applications connected to Level 2 (but not directly to Level 1)
+   - Nodes are automatically grouped by level in the visualization
+   - Level badges (L1, L2, L3) appear on each node
+   - Legend shows level color coding
+6. **Network View features**:
    - **Hover over connections** to see detailed tooltip information including all consolidated flows
    - **Click on connections** to view detailed interface descriptions in a modal dialog
    - Connection labels show:
@@ -96,11 +117,11 @@ The application supports the following integration pattern types, each displayed
      - Drag nodes to rearrange the layout
      - Zoom in/out using the mouse wheel
      - Pan the view by dragging the background
-6. **Dashboard features**:
+7. **Dashboard features**:
    - View KPIs: Total interfaces, systems, average connections, and data quality score
    - Analyze charts showing interface distribution and top connected systems
    - Monitor data validation statistics
-7. **Executive View features**:
+8. **Executive View features**:
    - Review critical systems and overall risk assessment
    - Analyze critical path systems with impact ratings
    - View risk impact scatter plot
@@ -121,6 +142,43 @@ The application supports the following integration pattern types, each displayed
 | System B     | System C   | PDF       | Monthly   | File Transfer       | Monthly FTP transfer of reports |
 | System D     | System A   | JSON      | On Demand | Streaming           | Real-time event stream |
 
+## Core Applications File (Optional)
+
+To enable level-based visualization, you can upload a file listing your core (Level 1) applications. The file should contain a single column with application names.
+
+**Supported formats**: Excel (.xlsx, .xls) or CSV (.csv)
+
+**Example CSV file** (`sample_core_applications.csv`):
+```csv
+Application
+System A
+System D
+```
+
+**Example Excel file structure**:
+
+| Application |
+|-------------|
+| System A    |
+| System D    |
+
+**Accepted column names** (case-insensitive):
+- Application
+- App
+- System
+- App Key
+- Application Name
+- System Name
+- Name
+- Core Application
+
+Once uploaded, the application will automatically:
+1. Identify these as **Level 1 (Core)** applications (shown in red)
+2. Determine **Level 2** applications (those directly connected to Level 1, shown in teal)
+3. Determine **Level 3** applications (those connected to Level 2 but not directly to Level 1, shown in yellow)
+4. Organize the visualization with levels grouped vertically
+5. Add level badges (L1, L2, L3) to each node
+
 ## Technical Details
 
 - **Frontend**: HTML, CSS, JavaScript
@@ -128,6 +186,7 @@ The application supports the following integration pattern types, each displayed
 - **PowerPoint Export**: PptxGenJS library (v3.12.0)
 - **Visualization**: 
   - Network diagram: Custom SVG-based visualization with force-directed layout algorithm
+  - Level-based organization: Automatic grouping by integration levels when core applications are provided
   - Dashboard charts: Custom SVG bar charts
   - Executive view: Custom SVG scatter plot for risk analysis
 - **No Backend Required**: Runs entirely in the browser

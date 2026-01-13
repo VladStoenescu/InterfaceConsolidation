@@ -23,6 +23,10 @@ let targetConnectionsData = null;
 let changedConnectionsData = null;
 let activeConnectionTab = 'all'; // 'all', 'existing', 'new', 'changed'
 
+// Core applications and level support
+let coreApplications = new Set(); // Level 1 (Core) applications
+let applicationLevels = new Map(); // Map of application name to level (1, 2, or 3)
+
 // Dynamic legend data
 let discoveredPatterns = new Map(); // pattern -> style
 let discoveredFrequencies = new Map(); // frequency -> style
@@ -37,6 +41,7 @@ const NODE_PADDING = 10; // Padding inside node boxes
 const NODE_HEIGHT = 40; // Height of node boxes
 const EDGE_LABEL_LINE_HEIGHT = 13; // Line height for multi-line edge labels
 const EDGE_LABEL_CHAR_WIDTH = 7; // Character width for edge label text
+const LEVEL_BADGE_SIZE = 20; // Size of level badge circle
 
 // Constants for force-directed layout algorithm
 const LAYOUT_GRID_RANDOM_OFFSET = 20; // Random offset in pixels for initial grid positioning
@@ -116,16 +121,17 @@ function handleFileUpload() {
 }
 
 /**
- * Handle multi-file upload for existing, target (new), and changed connections
+ * Handle multi-file upload for core applications, existing, target (new), and changed connections
  */
 function handleMultiFileUpload() {
+    const coreFile = document.getElementById('coreApplicationsFile').files[0];
     const existingFile = document.getElementById('existingConnectionsFile').files[0];
     const targetFile = document.getElementById('targetConnectionsFile').files[0];
     const changedFile = document.getElementById('changedConnectionsFile').files[0];
     
-    // At least one file must be selected
+    // At least one connection file must be selected
     if (!existingFile && !targetFile && !changedFile) {
-        showStatus('Please select at least one file', 'error');
+        showStatus('Please select at least one connection file', 'error');
         return;
     }
     
@@ -133,6 +139,32 @@ function handleMultiFileUpload() {
     showStatus('Processing files...', 'info');
     
     const filePromises = [];
+    
+    // Read core applications if provided
+    if (coreFile) {
+        filePromises.push(
+            readExcelFile(coreFile).then(data => {
+                // Extract core application names from the data
+                // Expected format: single column with application names
+                coreApplications.clear();
+                data.forEach(row => {
+                    // Try different possible column names
+                    const appName = getFieldValue(row, [
+                        'Application', 'App', 'System', 'App Key', 
+                        'Application Name', 'System Name', 'Name', 'Core Application'
+                    ]);
+                    if (appName) {
+                        coreApplications.add(appName);
+                    }
+                });
+                updateFileStatus('coreApplicationsStatus', coreFile.name, coreApplications.size, 'applications');
+                console.log('Core applications loaded:', Array.from(coreApplications));
+            })
+        );
+    } else {
+        // Clear core applications if no file provided
+        coreApplications.clear();
+    }
     
     // Read existing connections
     if (existingFile) {
@@ -209,7 +241,8 @@ function handleMultiFileUpload() {
 }
 
 /**
- * Read an Excel file and return JSON data
+ * Read an Excel or CSV file and return JSON data
+ * Note: The XLSX library (SheetJS) automatically handles both Excel and CSV files
  */
 function readExcelFile(file) {
     return new Promise((resolve, reject) => {
@@ -218,6 +251,7 @@ function readExcelFile(file) {
         reader.onload = function(e) {
             try {
                 const data = new Uint8Array(e.target.result);
+                // XLSX.read supports both Excel (.xlsx, .xls) and CSV (.csv) files
                 const workbook = XLSX.read(data, { type: 'array' });
                 
                 // Get the first sheet
@@ -243,11 +277,15 @@ function readExcelFile(file) {
 
 /**
  * Update file status display
+ * @param {string} statusId - ID of the status element to update
+ * @param {string} filename - Name of the uploaded file
+ * @param {number} rowCount - Number of rows/items in the file
+ * @param {string} label - Label to use for the count (e.g., 'rows', 'applications')
  */
-function updateFileStatus(statusId, filename, rowCount) {
+function updateFileStatus(statusId, filename, rowCount, label = 'rows') {
     const statusEl = document.getElementById(statusId);
     if (statusEl) {
-        statusEl.textContent = `${filename} (${rowCount} rows)`;
+        statusEl.textContent = `${filename} (${rowCount} ${label})`;
         statusEl.classList.add('selected');
     }
 }
@@ -312,9 +350,19 @@ function processAndVisualize(data) {
             return;
         }
         
+        // Identify application levels based on core applications
+        identifyApplicationLevels(nodes, edges);
+        
         currentData = { nodes, edges };
         createNetworkVisualization(nodes, edges);
-        showStatus(`Successfully loaded ${edges.length} interfaces between ${nodes.length} systems`, 'success');
+        
+        // Add level information to status message
+        const levelCounts = getLevelCounts();
+        let statusMsg = `Successfully loaded ${edges.length} interfaces between ${nodes.length} systems`;
+        if (coreApplications.size > 0) {
+            statusMsg += ` (Level 1: ${levelCounts.level1}, Level 2: ${levelCounts.level2}, Level 3: ${levelCounts.level3})`;
+        }
+        showStatus(statusMsg, 'success');
         
         // Update network stats
         updateNetworkStats(nodes, edges);
@@ -330,6 +378,111 @@ function processAndVisualize(data) {
         showStatus('Error creating visualization: ' + error.message, 'error');
         console.error(error);
     }
+}
+
+/**
+ * Identify application levels based on core applications and connections
+ * Level 1: Core applications (defined by user)
+ * Level 2: Applications directly connected to Level 1
+ * Level 3: Applications connected to Level 2 but not directly to Level 1
+ */
+function identifyApplicationLevels(nodes, edges) {
+    // Clear existing level assignments
+    applicationLevels.clear();
+    
+    // If no core applications defined, all nodes are unclassified (no level)
+    if (coreApplications.size === 0) {
+        console.log('No core applications defined. Skipping level identification.');
+        return;
+    }
+    
+    // Step 1: Assign Level 1 to all core applications
+    nodes.forEach(node => {
+        if (coreApplications.has(node.id)) {
+            applicationLevels.set(node.id, 1);
+            node.level = 1;
+        }
+    });
+    
+    // Step 2: Identify Level 2 - applications directly connected to Level 1
+    const level2Candidates = new Set();
+    edges.forEach(edge => {
+        const fromLevel = applicationLevels.get(edge.from);
+        const toLevel = applicationLevels.get(edge.to);
+        
+        // If from is Level 1 and to is unassigned, to becomes Level 2
+        if (fromLevel === 1 && !toLevel) {
+            level2Candidates.add(edge.to);
+        }
+        // If to is Level 1 and from is unassigned, from becomes Level 2
+        if (toLevel === 1 && !fromLevel) {
+            level2Candidates.add(edge.from);
+        }
+    });
+    
+    // Assign Level 2
+    level2Candidates.forEach(appId => {
+        applicationLevels.set(appId, 2);
+        const node = nodes.find(n => n.id === appId);
+        if (node) node.level = 2;
+    });
+    
+    // Step 3: Identify Level 3 - applications connected to Level 2 but not to Level 1
+    const level3Candidates = new Set();
+    edges.forEach(edge => {
+        const fromLevel = applicationLevels.get(edge.from);
+        const toLevel = applicationLevels.get(edge.to);
+        
+        // If from is Level 2 and to is unassigned, check if to connects to Level 1
+        if (fromLevel === 2 && !toLevel) {
+            // Check if edge.to has any direct connection to Level 1
+            // (either as source or target of an edge)
+            const hasLevel1Connection = edges.some(e => 
+                (e.from === edge.to && applicationLevels.get(e.to) === 1) ||  // edge.to → Level1
+                (e.to === edge.to && applicationLevels.get(e.from) === 1)      // Level1 → edge.to
+            );
+            if (!hasLevel1Connection) {
+                level3Candidates.add(edge.to);
+            }
+        }
+        // If to is Level 2 and from is unassigned, check if from connects to Level 1
+        if (toLevel === 2 && !fromLevel) {
+            // Check if edge.from has any direct connection to Level 1
+            // (either as source or target of an edge)
+            const hasLevel1Connection = edges.some(e => 
+                (e.from === edge.from && applicationLevels.get(e.to) === 1) ||  // edge.from → Level1
+                (e.to === edge.from && applicationLevels.get(e.from) === 1)     // Level1 → edge.from
+            );
+            if (!hasLevel1Connection) {
+                level3Candidates.add(edge.from);
+            }
+        }
+    });
+    
+    // Assign Level 3
+    level3Candidates.forEach(appId => {
+        applicationLevels.set(appId, 3);
+        const node = nodes.find(n => n.id === appId);
+        if (node) node.level = 3;
+    });
+    
+    console.log('Application levels identified:');
+    console.log('Level 1 (Core):', Array.from(applicationLevels.entries()).filter(([_, level]) => level === 1).map(([app]) => app));
+    console.log('Level 2:', Array.from(applicationLevels.entries()).filter(([_, level]) => level === 2).map(([app]) => app));
+    console.log('Level 3:', Array.from(applicationLevels.entries()).filter(([_, level]) => level === 3).map(([app]) => app));
+}
+
+/**
+ * Get counts of applications by level
+ */
+function getLevelCounts() {
+    const counts = { level1: 0, level2: 0, level3: 0, unclassified: 0 };
+    applicationLevels.forEach((level) => {
+        if (level === 1) counts.level1++;
+        else if (level === 2) counts.level2++;
+        else if (level === 3) counts.level3++;
+    });
+    return counts;
 }
 
 /**
@@ -380,6 +533,34 @@ function buildDynamicLegend(edges) {
     
     // Build the legend HTML
     let legendHTML = '<h3>Legend</h3>';
+    
+    // Application Levels section (if levels are defined)
+    if (coreApplications.size > 0 && applicationLevels.size > 0) {
+        legendHTML += '<div class="legend-section"><h4>Application Levels</h4>';
+        
+        legendHTML += `
+            <div class="legend-item">
+                <svg width="60" height="20">
+                    <rect x="0" y="5" width="60" height="10" fill="rgba(255, 107, 107, 0.4)" stroke="#FF6B6B" stroke-width="2" rx="4"/>
+                </svg>
+                <span>Level 1 (Core)</span>
+            </div>
+            <div class="legend-item">
+                <svg width="60" height="20">
+                    <rect x="0" y="5" width="60" height="10" fill="rgba(78, 205, 196, 0.4)" stroke="#4ECDC4" stroke-width="2" rx="4"/>
+                </svg>
+                <span>Level 2 (Direct to Core)</span>
+            </div>
+            <div class="legend-item">
+                <svg width="60" height="20">
+                    <rect x="0" y="5" width="60" height="10" fill="rgba(255, 217, 61, 0.4)" stroke="#FFD93D" stroke-width="2" rx="4"/>
+                </svg>
+                <span>Level 3 (Indirect)</span>
+            </div>
+        `;
+        
+        legendHTML += '</div>';
+    }
     
     // Integration Patterns section
     if (patterns.size > 0) {
@@ -884,7 +1065,7 @@ function createNetworkVisualization(nodes, edges) {
     // Clear existing defs
     defs.innerHTML = '';
     
-    // Create node gradient
+    // Create node gradient (default - no level)
     const nodeGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     nodeGradient.setAttribute('id', 'nodeGradient');
     nodeGradient.setAttribute('x1', '0%');
@@ -897,7 +1078,7 @@ function createNetworkVisualization(nodes, edges) {
     `;
     defs.appendChild(nodeGradient);
     
-    // Create node stroke gradient
+    // Create node stroke gradient (default - no level)
     const nodeStrokeGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     nodeStrokeGradient.setAttribute('id', 'nodeStrokeGradient');
     nodeStrokeGradient.setAttribute('x1', '0%');
@@ -909,6 +1090,81 @@ function createNetworkVisualization(nodes, edges) {
         <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
     `;
     defs.appendChild(nodeStrokeGradient);
+    
+    // Create Level 1 (Core) gradients - Red theme
+    const nodeGradientL1 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeGradientL1.setAttribute('id', 'nodeGradientLevel1');
+    nodeGradientL1.setAttribute('x1', '0%');
+    nodeGradientL1.setAttribute('y1', '0%');
+    nodeGradientL1.setAttribute('x2', '100%');
+    nodeGradientL1.setAttribute('y2', '100%');
+    nodeGradientL1.innerHTML = `
+        <stop offset="0%" style="stop-color:rgba(255, 107, 107, 0.4);stop-opacity:1" />
+        <stop offset="100%" style="stop-color:rgba(238, 82, 83, 0.4);stop-opacity:1" />
+    `;
+    defs.appendChild(nodeGradientL1);
+    
+    const nodeStrokeGradientL1 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeStrokeGradientL1.setAttribute('id', 'nodeStrokeGradientLevel1');
+    nodeStrokeGradientL1.setAttribute('x1', '0%');
+    nodeStrokeGradientL1.setAttribute('y1', '0%');
+    nodeStrokeGradientL1.setAttribute('x2', '100%');
+    nodeStrokeGradientL1.setAttribute('y2', '100%');
+    nodeStrokeGradientL1.innerHTML = `
+        <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#EE5253;stop-opacity:1" />
+    `;
+    defs.appendChild(nodeStrokeGradientL1);
+    
+    // Create Level 2 gradients - Teal theme
+    const nodeGradientL2 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeGradientL2.setAttribute('id', 'nodeGradientLevel2');
+    nodeGradientL2.setAttribute('x1', '0%');
+    nodeGradientL2.setAttribute('y1', '0%');
+    nodeGradientL2.setAttribute('x2', '100%');
+    nodeGradientL2.setAttribute('y2', '100%');
+    nodeGradientL2.innerHTML = `
+        <stop offset="0%" style="stop-color:rgba(78, 205, 196, 0.4);stop-opacity:1" />
+        <stop offset="100%" style="stop-color:rgba(0, 184, 148, 0.4);stop-opacity:1" />
+    `;
+    defs.appendChild(nodeGradientL2);
+    
+    const nodeStrokeGradientL2 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeStrokeGradientL2.setAttribute('id', 'nodeStrokeGradientLevel2');
+    nodeStrokeGradientL2.setAttribute('x1', '0%');
+    nodeStrokeGradientL2.setAttribute('y1', '0%');
+    nodeStrokeGradientL2.setAttribute('x2', '100%');
+    nodeStrokeGradientL2.setAttribute('y2', '100%');
+    nodeStrokeGradientL2.innerHTML = `
+        <stop offset="0%" style="stop-color:#4ECDC4;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#00B894;stop-opacity:1" />
+    `;
+    defs.appendChild(nodeStrokeGradientL2);
+    
+    // Create Level 3 gradients - Yellow theme
+    const nodeGradientL3 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeGradientL3.setAttribute('id', 'nodeGradientLevel3');
+    nodeGradientL3.setAttribute('x1', '0%');
+    nodeGradientL3.setAttribute('y1', '0%');
+    nodeGradientL3.setAttribute('x2', '100%');
+    nodeGradientL3.setAttribute('y2', '100%');
+    nodeGradientL3.innerHTML = `
+        <stop offset="0%" style="stop-color:rgba(255, 217, 61, 0.4);stop-opacity:1" />
+        <stop offset="100%" style="stop-color:rgba(253, 203, 110, 0.4);stop-opacity:1" />
+    `;
+    defs.appendChild(nodeGradientL3);
+    
+    const nodeStrokeGradientL3 = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    nodeStrokeGradientL3.setAttribute('id', 'nodeStrokeGradientLevel3');
+    nodeStrokeGradientL3.setAttribute('x1', '0%');
+    nodeStrokeGradientL3.setAttribute('y1', '0%');
+    nodeStrokeGradientL3.setAttribute('x2', '100%');
+    nodeStrokeGradientL3.setAttribute('y2', '100%');
+    nodeStrokeGradientL3.innerHTML = `
+        <stop offset="0%" style="stop-color:#FFD93D;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#FDCB6E;stop-opacity:1" />
+    `;
+    defs.appendChild(nodeStrokeGradientL3);
     
     // Create glow filter for nodes
     const nodeGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -1074,6 +1330,23 @@ function createNetworkVisualization(nodes, edges) {
         nodeGroup.setAttribute('data-id', node.id);
         nodeGroup.style.cursor = 'move';
         
+        // Get node level and determine styling
+        const level = node.level || applicationLevels.get(node.id);
+        let gradientId = 'nodeGradient';
+        let strokeGradientId = 'nodeStrokeGradient';
+        
+        // Use different gradients based on level
+        if (level === 1) {
+            gradientId = 'nodeGradientLevel1';
+            strokeGradientId = 'nodeStrokeGradientLevel1';
+        } else if (level === 2) {
+            gradientId = 'nodeGradientLevel2';
+            strokeGradientId = 'nodeStrokeGradientLevel2';
+        } else if (level === 3) {
+            gradientId = 'nodeGradientLevel3';
+            strokeGradientId = 'nodeStrokeGradientLevel3';
+        }
+        
         // Create rectangle with gradient
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         const textWidth = node.label.length * CHAR_WIDTH_ESTIMATE;
@@ -1081,8 +1354,8 @@ function createNetworkVisualization(nodes, edges) {
         rect.setAttribute('y', pos.y - NODE_HEIGHT / 2);
         rect.setAttribute('width', textWidth + NODE_PADDING * 2);
         rect.setAttribute('height', NODE_HEIGHT);
-        rect.setAttribute('fill', 'url(#nodeGradient)');
-        rect.setAttribute('stroke', 'url(#nodeStrokeGradient)');
+        rect.setAttribute('fill', `url(#${gradientId})`);
+        rect.setAttribute('stroke', `url(#${strokeGradientId})`);
         rect.setAttribute('stroke-width', '2');
         rect.setAttribute('rx', '8');
         rect.setAttribute('filter', 'url(#nodeGlow)');
@@ -1101,6 +1374,46 @@ function createNetworkVisualization(nodes, edges) {
         nodeGroup.appendChild(rect);
         nodeGroup.appendChild(text);
         
+        // Add level badge if level is defined
+        if (level) {
+            const badgeX = pos.x + textWidth / 2 + NODE_PADDING - LEVEL_BADGE_SIZE / 2;
+            const badgeY = pos.y - NODE_HEIGHT / 2;
+            
+            // Badge circle
+            const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            badge.setAttribute('cx', badgeX);
+            badge.setAttribute('cy', badgeY);
+            badge.setAttribute('r', LEVEL_BADGE_SIZE / 2);
+            
+            // Badge color based on level
+            let badgeColor = '#888888';
+            if (level === 1) badgeColor = '#FF6B6B'; // Red for core
+            else if (level === 2) badgeColor = '#4ECDC4'; // Teal for Level 2
+            else if (level === 3) badgeColor = '#FFD93D'; // Yellow for Level 3
+            
+            badge.setAttribute('fill', badgeColor);
+            badge.setAttribute('stroke', '#ffffff');
+            badge.setAttribute('stroke-width', '2');
+            
+            // Badge text
+            const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            badgeText.setAttribute('x', badgeX);
+            badgeText.setAttribute('y', badgeY + 4);
+            badgeText.setAttribute('text-anchor', 'middle');
+            badgeText.setAttribute('font-size', '12');
+            badgeText.setAttribute('font-weight', 'bold');
+            badgeText.setAttribute('fill', '#ffffff');
+            badgeText.textContent = `L${level}`;
+            
+            // Badge tooltip
+            const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            badgeTitle.textContent = `Level ${level}`;
+            badge.appendChild(badgeTitle);
+            
+            nodeGroup.appendChild(badge);
+            nodeGroup.appendChild(badgeText);
+        }
+        
         // Store position data
         nodeGroup.dataset.x = pos.x;
         nodeGroup.dataset.y = pos.y;
@@ -1116,7 +1429,38 @@ function createNetworkVisualization(nodes, edges) {
 }
 
 /**
- * Calculate positions for nodes using force-directed layout
+ * Position nodes in a specific section of the canvas
+ * @param {Array} nodes - Nodes to position
+ * @param {Object} positions - Positions object to populate
+ * @param {number} x - Section X coordinate
+ * @param {number} y - Section Y coordinate
+ * @param {number} sectionWidth - Width of the section
+ * @param {number} sectionHeight - Height of the section
+ */
+function positionNodesInSection(nodes, positions, x, y, sectionWidth, sectionHeight) {
+    if (nodes.length === 0) return;
+    
+    // Calculate grid for this section
+    const cols = Math.ceil(Math.sqrt(nodes.length));
+    const rows = Math.ceil(nodes.length / cols);
+    const cellWidth = sectionWidth / cols;
+    const cellHeight = sectionHeight / rows;
+    
+    nodes.forEach((node, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        
+        positions[node.id] = {
+            x: x + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
+            y: y + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
+            vx: 0,
+            vy: 0
+        };
+    });
+}
+
+/**
+ * Calculate positions for nodes using force-directed layout with level-based grouping
  */
 function calculateNodePositions(nodes, width, height) {
     const positions = {};
@@ -1128,32 +1472,60 @@ function calculateNodePositions(nodes, width, height) {
         return positions;
     }
     
-    // Initialize nodes with grid-based positions for better distribution with large datasets
     const margin = 100;
     const nodeCount = nodes.length;
     
-    // Calculate grid dimensions - aim for roughly square grid
-    const cols = Math.ceil(Math.sqrt(nodeCount));
-    const rows = Math.ceil(nodeCount / cols);
+    // Check if we have level-based organization
+    const hasLevels = coreApplications.size > 0 && applicationLevels.size > 0;
     
-    // Calculate spacing based on available area
-    const availableWidth = width - 2 * margin;
-    const availableHeight = height - 2 * margin;
-    const cellWidth = availableWidth / cols;
-    const cellHeight = availableHeight / rows;
-    
-    nodes.forEach((node, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
+    if (hasLevels) {
+        // Group nodes by level
+        const level1Nodes = nodes.filter(n => (n.level || applicationLevels.get(n.id)) === 1);
+        const level2Nodes = nodes.filter(n => (n.level || applicationLevels.get(n.id)) === 2);
+        const level3Nodes = nodes.filter(n => (n.level || applicationLevels.get(n.id)) === 3);
+        const unclassifiedNodes = nodes.filter(n => !(n.level || applicationLevels.get(n.id)));
         
-        // Position node in grid cell with some randomization to avoid perfect alignment
-        positions[node.id] = {
-            x: margin + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
-            y: margin + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
-            vx: 0,
-            vy: 0
-        };
-    });
+        // Divide canvas into horizontal sections for each level
+        const sectionHeight = (height - 2 * margin) / 3;
+        
+        // Position Level 1 nodes in top section
+        positionNodesInSection(level1Nodes, positions, margin, margin, width - 2 * margin, sectionHeight);
+        
+        // Position Level 2 nodes in middle section
+        positionNodesInSection(level2Nodes, positions, margin, margin + sectionHeight, width - 2 * margin, sectionHeight);
+        
+        // Position Level 3 nodes in bottom section
+        positionNodesInSection(level3Nodes, positions, margin, margin + 2 * sectionHeight, width - 2 * margin, sectionHeight);
+        
+        // Position unclassified nodes (if any) at the very bottom
+        if (unclassifiedNodes.length > 0) {
+            positionNodesInSection(unclassifiedNodes, positions, margin, height - margin - 100, width - 2 * margin, 100);
+        }
+    } else {
+        // Original grid-based positioning when no levels defined
+        // Calculate grid dimensions - aim for roughly square grid
+        const cols = Math.ceil(Math.sqrt(nodeCount));
+        const rows = Math.ceil(nodeCount / cols);
+        
+        // Calculate spacing based on available area
+        const availableWidth = width - 2 * margin;
+        const availableHeight = height - 2 * margin;
+        const cellWidth = availableWidth / cols;
+        const cellHeight = availableHeight / rows;
+        
+        nodes.forEach((node, index) => {
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            
+            // Position node in grid cell with some randomization to avoid perfect alignment
+            positions[node.id] = {
+                x: margin + col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
+                y: margin + row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * LAYOUT_GRID_RANDOM_OFFSET,
+                vx: 0,
+                vy: 0
+            };
+        });
+    }
     
     // Force-directed layout parameters - scale with node count for better results
     // More nodes need more iterations and different force parameters
