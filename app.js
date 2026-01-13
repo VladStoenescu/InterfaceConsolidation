@@ -156,7 +156,7 @@ function handleMultiFileUpload() {
                         coreApplications.add(appName);
                     }
                 });
-                updateFileStatus('coreApplicationsStatus', coreFile.name, coreApplications.size);
+                updateFileStatus('coreApplicationsStatus', coreFile.name, coreApplications.size, 'applications');
                 console.log('Core applications loaded:', Array.from(coreApplications));
             })
         );
@@ -240,7 +240,8 @@ function handleMultiFileUpload() {
 }
 
 /**
- * Read an Excel file and return JSON data
+ * Read an Excel or CSV file and return JSON data
+ * Note: The XLSX library (SheetJS) automatically handles both Excel and CSV files
  */
 function readExcelFile(file) {
     return new Promise((resolve, reject) => {
@@ -249,6 +250,7 @@ function readExcelFile(file) {
         reader.onload = function(e) {
             try {
                 const data = new Uint8Array(e.target.result);
+                // XLSX.read supports both Excel (.xlsx, .xls) and CSV (.csv) files
                 const workbook = XLSX.read(data, { type: 'array' });
                 
                 // Get the first sheet
@@ -275,10 +277,10 @@ function readExcelFile(file) {
 /**
  * Update file status display
  */
-function updateFileStatus(statusId, filename, rowCount) {
+function updateFileStatus(statusId, filename, rowCount, label = 'rows') {
     const statusEl = document.getElementById(statusId);
     if (statusEl) {
-        statusEl.textContent = `${filename} (${rowCount} rows)`;
+        statusEl.textContent = `${filename} (${rowCount} ${label})`;
         statusEl.classList.add('selected');
     }
 }
