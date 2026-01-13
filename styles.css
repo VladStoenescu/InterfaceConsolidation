@@ -2276,3 +2276,69 @@ body.light-theme .generator-info code {
         min-width: 100%;
     }
 }
+
+/* ==================== HIERARCHICAL VIEW STYLES ==================== */
+
+.hierarchy-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(0, 212, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.hierarchy-header h2 {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+}
+
+.hierarchy-subtitle {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin: 0;
+}
+
+.hierarchy-container {
+    background: var(--dark-card);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    margin-bottom: 20px;
+    min-height: 600px;
+    overflow: auto;
+    position: relative;
+}
+
+#hierarchySvg {
+    min-height: 600px;
+}
+
+.hierarchy-layer {
+    margin-bottom: 40px;
+}
+
+.hierarchy-layer-label {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+body.light-theme .hierarchy-header {
+    background: rgba(102, 126, 234, 0.05);
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+body.light-theme .hierarchy-container {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border-color: rgba(102, 126, 234, 0.2);
+}

@@ -27,6 +27,9 @@ let activeConnectionTab = 'all'; // 'all', 'existing', 'new', 'changed'
 let coreApplications = new Set(); // Level 1 (Core) applications
 let applicationLevels = new Map(); // Map of application name to level (1, 2, or 3)
 
+// Marker ID counter for deterministic IDs
+let markerIdCounter = 0;
+
 // Dynamic legend data
 let discoveredPatterns = new Map(); // pattern -> style
 let discoveredFrequencies = new Map(); // frequency -> style
@@ -2288,6 +2291,8 @@ function handleVersionSelection() {
         initializeDashboard();
     } else if (currentView === 'executive') {
         initializeExecutiveView();
+    } else if (currentView === 'hierarchy') {
+        initializeHierarchyView();
     }
     
     showStatus(`Loaded version: ${version.name}`, 'success');
@@ -2668,7 +2673,7 @@ const HIGH_CONNECTION_THRESHOLD = 10;
 const BATCH_DOMINANCE_THRESHOLD = 0.6;
 
 /**
- * Switch between different views (network, dashboard, executive)
+ * Switch between different views (network, dashboard, executive, hierarchy)
  */
 function switchView(viewName) {
     currentView = viewName;
@@ -2686,6 +2691,8 @@ function switchView(viewName) {
     document.getElementById('networkStats').style.display = 'none';
     document.getElementById('dashboardView').style.display = 'none';
     document.getElementById('executiveView').style.display = 'none';
+    document.getElementById('hierarchyView').style.display = 'none';
+    document.getElementById('hierarchyStats')?.style.setProperty('display', 'none');
     
     // Show selected view
     if (viewName === 'network') {
@@ -2704,6 +2711,11 @@ function switchView(viewName) {
         document.getElementById('executiveView').style.display = 'block';
         if (currentData) {
             initializeExecutiveView();
+        }
+    } else if (viewName === 'hierarchy') {
+        document.getElementById('hierarchyView').style.display = 'block';
+        if (currentData) {
+            initializeHierarchyView();
         }
     }
 }
@@ -4096,4 +4108,264 @@ function getGeneratorOptions() {
     };
 }
 
+// ==================== HIERARCHICAL VIEW FUNCTIONS ====================
+
+/**
+ * Initialize the hierarchical view
+ */
+function initializeHierarchyView() {
+    if (!currentData) return;
+    
+    const { nodes, edges } = currentData;
+    
+    // Organize nodes by level (using existing level assignments from identifyApplicationLevels)
+    const nodesByLevel = {
+        0: [], // Level 1 (Core) → L0 in new view
+        1: [], // Level 2 → L1 in new view
+        2: [], // Level 3 → L2 in new view
+        3: []  // Unassigned → L3 in new view
+    };
+    
+    nodes.forEach(node => {
+        const level = node.level || applicationLevels.get(node.id);
+        
+        if (level === 1) {
+            nodesByLevel[0].push(node); // Core becomes L0
+        } else if (level === 2) {
+            nodesByLevel[1].push(node); // Level 2 becomes L1
+        } else if (level === 3) {
+            nodesByLevel[2].push(node); // Level 3 becomes L2
+        } else {
+            nodesByLevel[3].push(node); // Unassigned becomes L3
+        }
+    });
+    
+    // Update stats
+    document.getElementById('statL0').textContent = nodesByLevel[0].length;
+    document.getElementById('statL1').textContent = nodesByLevel[1].length;
+    document.getElementById('statL2').textContent = nodesByLevel[2].length;
+    document.getElementById('statL3').textContent = nodesByLevel[3].length;
+    document.getElementById('hierarchyStats').style.display = 'flex';
+    
+    // Create hierarchical visualization
+    createHierarchicalVisualization(nodesByLevel, edges);
+}
+
+/**
+ * Create hierarchical visualization with nodes in layers
+ */
+function createHierarchicalVisualization(nodesByLevel, edges) {
+    const svg = document.getElementById('hierarchySvg');
+    
+    // Clear previous content
+    svg.innerHTML = '';
+    
+    // Get container dimensions
+    const container = svg.parentElement;
+    const width = Math.max(container.clientWidth, 1200);
+    
+    // Calculate height based on number of levels with nodes
+    const levelsWithNodes = Object.values(nodesByLevel).filter(level => level.length > 0).length;
+    const height = Math.max(600, levelsWithNodes * 200 + 100);
+    
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('width', width);
+    svg.setAttribute('height', height);
+    
+    // Create SVG group for content
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('id', 'hierarchyGroup');
+    svg.appendChild(g);
+    
+    // Create defs for gradients (reuse from network view)
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        svg.insertBefore(defs, g);
+    }
+    
+    // Add gradients
+    addHierarchyGradients(defs);
+    
+    // Layout parameters
+    const layerHeight = 180;
+    const topMargin = 80;
+    const nodeWidth = 150;
+    const nodeHeight = 50;
+    const horizontalSpacing = 30;
+    
+    // Position nodes by level
+    const positions = new Map();
+    const levelLabels = ['L0 (Core)', 'L1', 'L2', 'L3'];
+    const levelColors = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#999999'];
+    const gradientIds = ['nodeGradientLevel1', 'nodeGradientLevel2', 'nodeGradientLevel3', 'nodeGradient'];
+    const strokeGradientIds = ['nodeStrokeGradientLevel1', 'nodeStrokeGradientLevel2', 'nodeStrokeGradientLevel3', 'nodeStrokeGradient'];
+    
+    let currentY = topMargin;
+    
+    // Draw each level
+    for (let level = 0; level < 4; level++) {
+        const levelNodes = nodesByLevel[level];
+        
+        if (levelNodes.length === 0) continue;
+        
+        // Draw level label
+        const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        labelBg.setAttribute('x', 20);
+        labelBg.setAttribute('y', currentY - 35);
+        labelBg.setAttribute('width', 120);
+        labelBg.setAttribute('height', 30);
+        labelBg.setAttribute('fill', levelColors[level]);
+        labelBg.setAttribute('rx', 6);
+        labelBg.setAttribute('opacity', 0.3);
+        
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', 80);
+        labelText.setAttribute('y', currentY - 15);
+        labelText.setAttribute('text-anchor', 'middle');
+        labelText.setAttribute('font-size', '16');
+        labelText.setAttribute('font-weight', 'bold');
+        labelText.setAttribute('fill', levelColors[level]);
+        labelText.textContent = levelLabels[level];
+        
+        labelGroup.appendChild(labelBg);
+        labelGroup.appendChild(labelText);
+        g.appendChild(labelGroup);
+        
+        // Calculate horizontal positions for nodes in this level
+        const totalWidth = levelNodes.length * (nodeWidth + horizontalSpacing) - horizontalSpacing;
+        const startX = (width - totalWidth) / 2;
+        
+        // Draw nodes in this level
+        levelNodes.forEach((node, index) => {
+            const x = startX + index * (nodeWidth + horizontalSpacing);
+            const y = currentY;
+            
+            positions.set(node.id, { x: x + nodeWidth / 2, y: y + nodeHeight / 2 });
+            
+            // Create node group
+            const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            nodeGroup.setAttribute('class', 'hierarchy-node');
+            
+            // Node rectangle
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', x);
+            rect.setAttribute('y', y);
+            rect.setAttribute('width', nodeWidth);
+            rect.setAttribute('height', nodeHeight);
+            rect.setAttribute('fill', `url(#${gradientIds[level]})`);
+            rect.setAttribute('stroke', `url(#${strokeGradientIds[level]})`);
+            rect.setAttribute('stroke-width', '2');
+            rect.setAttribute('rx', '8');
+            
+            // Node text
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x + nodeWidth / 2);
+            text.setAttribute('y', y + nodeHeight / 2 + 5);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', '13');
+            text.setAttribute('font-weight', '600');
+            text.setAttribute('fill', '#ffffff');
+            
+            // Truncate long labels
+            const maxChars = 18;
+            const displayLabel = node.label.length > maxChars 
+                ? node.label.substring(0, maxChars - 2) + '..' 
+                : node.label;
+            text.textContent = displayLabel;
+            
+            // Tooltip
+            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            title.textContent = node.label;
+            
+            nodeGroup.appendChild(rect);
+            nodeGroup.appendChild(text);
+            nodeGroup.appendChild(title);
+            g.appendChild(nodeGroup);
+        });
+        
+        currentY += layerHeight;
+    }
+    
+    // Draw edges with curves
+    edges.forEach(edge => {
+        const fromPos = positions.get(edge.from);
+        const toPos = positions.get(edge.to);
+        
+        if (!fromPos || !toPos) return;
+        
+        // Use integration pattern for styling
+        const hasValidPattern = edge.integrationPattern && 
+            edge.integrationPattern.toLowerCase() !== 'unknown';
+        const style = hasValidPattern
+            ? getIntegrationPatternStyle(edge.integrationPattern)
+            : getEdgeStyle(edge.frequency);
+        
+        // Create curved path
+        const dx = toPos.x - fromPos.x;
+        const dy = toPos.y - fromPos.y;
+        const controlY = fromPos.y + dy * 0.5;
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = `M ${fromPos.x} ${fromPos.y} Q ${fromPos.x + dx * 0.5} ${controlY} ${toPos.x} ${toPos.y}`;
+        path.setAttribute('d', pathData);
+        path.setAttribute('stroke', style.color);
+        path.setAttribute('stroke-width', Math.max(2, style.width - 1));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('opacity', 0.6);
+        
+        if (style.dasharray) {
+            path.setAttribute('stroke-dasharray', style.dasharray);
+        }
+        
+        // Add arrow marker with deterministic ID
+        const markerId = `arrow-hier-${markerIdCounter++}`;
+        createArrowMarker(svg, markerId, style.color);
+        path.setAttribute('marker-end', `url(#${markerId})`);
+        
+        // Tooltip
+        const pathTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        pathTitle.textContent = edge.tooltip;
+        path.appendChild(pathTitle);
+        
+        // Insert edges before nodes
+        g.insertBefore(path, g.firstChild);
+    });
+}
+
+/**
+ * Add gradients for hierarchy view
+ */
+function addHierarchyGradients(defs) {
+    // Only add gradients if they don't already exist
+    const gradients = [
+        { id: 'nodeGradient', color1: 'rgba(0, 212, 255, 0.3)', color2: 'rgba(168, 85, 247, 0.3)' },
+        { id: 'nodeStrokeGradient', color1: '#00d4ff', color2: '#a855f7' },
+        { id: 'nodeGradientLevel1', color1: 'rgba(255, 107, 107, 0.4)', color2: 'rgba(238, 82, 83, 0.4)' },
+        { id: 'nodeStrokeGradientLevel1', color1: '#FF6B6B', color2: '#EE5253' },
+        { id: 'nodeGradientLevel2', color1: 'rgba(78, 205, 196, 0.4)', color2: 'rgba(0, 184, 148, 0.4)' },
+        { id: 'nodeStrokeGradientLevel2', color1: '#4ECDC4', color2: '#00B894' },
+        { id: 'nodeGradientLevel3', color1: 'rgba(255, 217, 61, 0.4)', color2: 'rgba(253, 203, 110, 0.4)' },
+        { id: 'nodeStrokeGradientLevel3', color1: '#FFD93D', color2: '#FDCB6E' }
+    ];
+    
+    gradients.forEach(grad => {
+        // Check if gradient already exists
+        if (!defs.querySelector(`#${grad.id}`)) {
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradient.setAttribute('id', grad.id);
+            gradient.setAttribute('x1', '0%');
+            gradient.setAttribute('y1', '0%');
+            gradient.setAttribute('x2', '100%');
+            gradient.setAttribute('y2', '100%');
+            gradient.innerHTML = `
+                <stop offset="0%" style="stop-color:${grad.color1};stop-opacity:1" />
+                <stop offset="100%" style="stop-color:${grad.color2};stop-opacity:1" />
+            `;
+            defs.appendChild(gradient);
+        }
+    });
+}
 
