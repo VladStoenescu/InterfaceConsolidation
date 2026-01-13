@@ -277,6 +277,10 @@ function readExcelFile(file) {
 
 /**
  * Update file status display
+ * @param {string} statusId - ID of the status element to update
+ * @param {string} filename - Name of the uploaded file
+ * @param {number} rowCount - Number of rows/items in the file
+ * @param {string} label - Label to use for the count (e.g., 'rows', 'applications')
  */
 function updateFileStatus(statusId, filename, rowCount, label = 'rows') {
     const statusEl = document.getElementById(statusId);
