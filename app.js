@@ -27,6 +27,9 @@ let activeConnectionTab = 'all'; // 'all', 'existing', 'new', 'changed'
 let coreApplications = new Set(); // Level 1 (Core) applications
 let applicationLevels = new Map(); // Map of application name to level (1, 2, or 3)
 
+// Marker ID counter for deterministic IDs
+let markerIdCounter = 0;
+
 // Dynamic legend data
 let discoveredPatterns = new Map(); // pattern -> style
 let discoveredFrequencies = new Map(); // frequency -> style
@@ -2288,6 +2291,8 @@ function handleVersionSelection() {
         initializeDashboard();
     } else if (currentView === 'executive') {
         initializeExecutiveView();
+    } else if (currentView === 'hierarchy') {
+        initializeHierarchyView();
     }
     
     showStatus(`Loaded version: ${version.name}`, 'success');
@@ -4315,8 +4320,8 @@ function createHierarchicalVisualization(nodesByLevel, edges) {
             path.setAttribute('stroke-dasharray', style.dasharray);
         }
         
-        // Add arrow marker
-        const markerId = `arrow-hier-${edge.from}-${edge.to}-${Math.random().toString(36).substr(2, 9)}`;
+        // Add arrow marker with deterministic ID
+        const markerId = `arrow-hier-${markerIdCounter++}`;
         createArrowMarker(svg, markerId, style.color);
         path.setAttribute('marker-end', `url(#${markerId})`);
         
@@ -4334,10 +4339,7 @@ function createHierarchicalVisualization(nodesByLevel, edges) {
  * Add gradients for hierarchy view
  */
 function addHierarchyGradients(defs) {
-    // Clear existing gradients
-    defs.innerHTML = '';
-    
-    // Reuse the gradient creation logic from createNetworkVisualization
+    // Only add gradients if they don't already exist
     const gradients = [
         { id: 'nodeGradient', color1: 'rgba(0, 212, 255, 0.3)', color2: 'rgba(168, 85, 247, 0.3)' },
         { id: 'nodeStrokeGradient', color1: '#00d4ff', color2: '#a855f7' },
@@ -4350,17 +4352,20 @@ function addHierarchyGradients(defs) {
     ];
     
     gradients.forEach(grad => {
-        const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-        gradient.setAttribute('id', grad.id);
-        gradient.setAttribute('x1', '0%');
-        gradient.setAttribute('y1', '0%');
-        gradient.setAttribute('x2', '100%');
-        gradient.setAttribute('y2', '100%');
-        gradient.innerHTML = `
-            <stop offset="0%" style="stop-color:${grad.color1};stop-opacity:1" />
-            <stop offset="100%" style="stop-color:${grad.color2};stop-opacity:1" />
-        `;
-        defs.appendChild(gradient);
+        // Check if gradient already exists
+        if (!defs.querySelector(`#${grad.id}`)) {
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradient.setAttribute('id', grad.id);
+            gradient.setAttribute('x1', '0%');
+            gradient.setAttribute('y1', '0%');
+            gradient.setAttribute('x2', '100%');
+            gradient.setAttribute('y2', '100%');
+            gradient.innerHTML = `
+                <stop offset="0%" style="stop-color:${grad.color1};stop-opacity:1" />
+                <stop offset="100%" style="stop-color:${grad.color2};stop-opacity:1" />
+            `;
+            defs.appendChild(gradient);
+        }
     });
 }
 
